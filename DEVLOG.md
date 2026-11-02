@@ -139,3 +139,144 @@ matrix: if anything leaks out of `out_of_scope`, it will be these.
   `text,intent`, UTF-8, no missing values.
 - Sentence length: mean 5.8 words, median 6, range 1–14.
 - Not yet trained — data handed over for review first.
+
+### Safety TO-DO (decided during the step 2 review)
+
+**The classifier must not be the only line of defence for avalanche questions.** Two
+hand-written `out_of_scope` examples cannot cover the phrasing space, and a sentence
+like *"avalanche risk after the fresh snow"* contains strong `ask_precipitation`
+vocabulary ("fresh snow") that would very likely outweigh the single token "avalanche".
+A statistical model gives no guarantee here, and this is the one error class with a
+real-world safety consequence.
+
+**Required for the dialogue manager step:** a **rule-based safety guard that runs
+BEFORE the intent classifier**. If the message matches `avalanche` / `lawine` or close
+variants (including `avalanch`, `avalance`, `lawinen-`, `lawinengefahr`, and the
+abbreviation `LWD`), the bot skips classification entirely and returns a **fixed
+referral** to the official avalanche warning service (avalanche.report / the regional
+Lawinenwarndienst), with no forecast values attached.
+
+Design notes:
+- Order matters: guard first, classifier second. A guard behind the classifier would
+  only ever see messages the model already mislabelled.
+- Matching is done on the lower-cased message with a tolerant pattern, not on exact
+  tokens, so `"Avalanche-Risk"` and `"lawinengefahr"` are caught too.
+- The avalanche examples **stay in `out_of_scope`** regardless. The guard and the
+  training data are two independent layers: if the guard pattern ever misses a variant,
+  the classifier should still not route it to a weather answer.
+- This is a good slide: it shows where a rule beats a learned model, and why a safety
+  requirement is an architecture decision rather than a data problem.
+
+---
+
+## Step 3 — Training and evaluating the baseline intent model (2026-11-02)
+
+### Code structure decision
+
+The shared logic went into **`peakcast/intent_classifier.py`** instead of being copied
+into the three scripts. Reasons: the pipeline is defined exactly **once**, so training
+and evaluation can never drift apart and invalidate the reported metrics; and the
+dialogue manager and Streamlit app will import the same functions later —
+`train_and_save()` is already written so the app can satisfy the
+"train automatically if the model file is missing" to-do. The scripts in `scripts/`
+are thin runners around it.
+
+### Results of the baseline
+
+| Metric | Value |
+| --- | --- |
+| 5-fold cross-validation accuracy (train) | **0.678** (std 0.069) |
+| Test accuracy | **0.775** (62/80) |
+| Macro F1 (test) | 0.778 |
+| TF-IDF features | 1298 |
+
+Per-intent F1 on the test set: `goodbye` 0.95, `ask_overview` 0.84, `greet` 0.84,
+`ask_sky` 0.82, `ask_precipitation` 0.74, `ask_wind` 0.70, `ask_temperature` 0.67,
+`out_of_scope` 0.67.
+
+**Read per-intent numbers with care.** With only 10 test sentences per intent, a single
+error moves that intent's recall by a full 10 percentage points, so the gap between
+`ask_sky` (0.90 recall) and `ask_wind` (0.70) is two sentences, not a stable property of
+the model. The cross-validation mean is the more trustworthy figure, because it averages
+over 320 sentences in five different splits. Note that test accuracy (0.775) sits *above*
+the CV mean (0.678) — with samples this small, that is sampling noise, not evidence that
+the model generalises better than it trains.
+
+### Problem found: the baseline cannot support a confidence threshold
+
+The task was to recommend a probability below which the bot says it did not understand.
+Measuring it exposed a defect in the baseline rather than a threshold choice:
+
+- The most confident *correct* prediction on the whole test set reaches only **p = 0.35**.
+- Mean confidence is **0.345 for correct** and **0.223 for wrong** predictions — barely
+  separated, and both close to the 1/8 = 0.125 of pure guessing.
+
+Threshold analysis on out-of-fold cross-validation predictions (deliberately **not** on
+the test set, because a threshold is a tuned parameter and tuning it on test data would
+make the reported test accuracy optimistic):
+
+| threshold | errors caught | correct answers lost |
+| --- | --- | --- |
+| 0.20 | 52 % | 13 % |
+| 0.25 | 85 % | 42 % |
+| 0.30 | 98 % | 60 % |
+| 0.40 | 100 % | 79 % |
+
+There is no usable operating point: intercepting most errors means rejecting roughly
+half of the answers the bot got right. **The cause is the model, not the threshold.**
+`LogisticRegression` defaults to `C=1.0`, which over-regularises L2-normalised TF-IDF
+vectors of very short sentences; all weights are shrunk toward zero and the softmax
+output stays nearly flat.
+
+`CONFIDENCE_THRESHOLD = 0.25` is set in `peakcast/intent_classifier.py` as a
+**provisional** value so the fallback path can be built, and flagged there for
+re-derivation.
+
+### Diagnosis: what actually fixes it (measured, cross-validated, not yet adopted)
+
+| Features | C | CV accuracy | mean p correct | mean p wrong |
+| --- | --- | --- | --- | --- |
+| word 1-2 grams (**current baseline**) | 1 | 0.678 | 0.31 | 0.20 |
+| word 1-2 grams | 10 | 0.706 | 0.60 | 0.35 |
+| word + char_wb 3-5 grams | 1 | 0.781 | 0.42 | 0.25 |
+| **word + char_wb 3-5 grams** | **3** | **0.791** | **0.56** | **0.31** |
+
+Two independent findings:
+
+1. **Character n-grams are worth ~+11 accuracy points** (0.678 → 0.791). This confirms
+   the prediction written down in step 2: the deliberate typos (`sunnyy`, `tomorow`,
+   `wheater`, `gday`, `hiya`) share no *word* with any training sentence, so a word-level
+   vectorizer sees them as entirely unknown input. Character n-grams still match
+   `sunny`/`sunnyy`. Four of the 18 test errors are exactly such typo or short-form cases.
+2. **Raising `C` to 3 roughly doubles the confidence of correct predictions**, which is
+   what makes a threshold possible at all.
+
+The baseline was **kept unchanged on purpose** — `reports/metrics_baseline.json` is the
+reference point the next iteration has to beat, and the whole point of the portfolio is
+to show the optimisation path rather than a single tuned number.
+
+### Error analysis (all 18 errors in `reports/misclassified_baseline.csv`)
+
+- Confusions are spread thinly across the weather intents; no systematic pair dominates.
+  The largest single cell is `ask_wind` → `ask_sky` with 2.
+- The step 2 prediction that `out_of_scope` would leak was **half right**. It has the
+  joint-lowest F1 (0.67), and `"are the lifts running at the Turracher Höhe"` did leak to
+  `ask_wind` as expected. But the other two errors were *not* the mountain-infrastructure
+  cases: `"how many people live in Linz"` and `"how high is the Dachstein"` both went to
+  `ask_temperature`, apparently on the quantity phrasing "how many"/"how high".
+- `greet` lost `"gday"` and `"hiya"` to `out_of_scope` — both unknown tokens at word
+  level, i.e. the character n-gram finding again.
+- The safety case was reproduced by hand in `try_intent.py`:
+  **`"avalanche risk after the fresh snow"` → `ask_precipitation` with p = 0.252**,
+  *above* the provisional threshold. The bot would answer it confidently with a snow
+  forecast. This is direct empirical evidence for the rule-based avalanche guard
+  specified in the step 2 safety to-do — a statistical classifier will not reliably
+  catch this, and the fallback threshold does not catch it either.
+
+### Artefacts produced
+
+- `models/intent_model.joblib` (git-ignored, regenerated by the training script)
+- `reports/confusion_matrix.png`
+- `reports/metrics_baseline.json`
+- `reports/misclassified_baseline.csv` (18 rows, with the probability of both the
+  predicted and the true intent, so near-misses can be told from confident errors)

@@ -89,6 +89,19 @@ environment can be rebuilt identically.
 ## 5. Current status
 
 - [x] **Step 1** — project setup: virtual environment, folder structure, git repository
-- [ ] **Step 2** — training and test data for the intent classifier
-- [ ] **Step 3** — train and evaluate the baseline intent model
-- [ ] Later steps — slot extraction, weather service, dialogue manager, Streamlit UI
+- [x] **Step 2** — training and test data: 320 training and 80 test sentences, 8 intents
+- [x] **Step 3** — baseline intent model trained and evaluated
+- [ ] Later steps — model optimisation, slot extraction, weather service,
+      dialogue manager (incl. rule-based avalanche safety guard), Streamlit UI
+
+### Running the intent classifier
+
+```bash
+python scripts/train_intent.py      # cross-validate and save models/intent_model.joblib
+python scripts/evaluate_intent.py   # test-set metrics into reports/
+python scripts/try_intent.py        # type sentences and see the predicted intent
+```
+
+Baseline result: **0.775 test accuracy** (5-fold cross-validation on the training
+set: 0.678). Metrics, the confusion matrix and every misclassified sentence are
+written to `reports/`.
