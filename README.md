@@ -58,7 +58,12 @@ Response generator        (templates with values, units and outdoor hint)
 
 ## 4. Setup
 
-Requires **Python 3.12** (3.10–3.12 all work). Checked with `python --version`.
+Requires **Python 3.12** (3.10–3.12 all work).
+
+Check which versions are installed with `py --list` on Windows or
+`python3 --version` on Linux/macOS. On Windows, avoid the bare `python` command:
+if Python was never installed from the Microsoft Store it resolves to a stub that
+reports no version at all. The `py` launcher is reliable.
 
 ### Windows (PowerShell)
 

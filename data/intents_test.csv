@@ -1,0 +1,81 @@
+text,intent
+how many degrees are we expecting in Gmunden on Thursday,ask_temperature
+is it mild up at the Krippenstein,ask_temperature
+whats the thermometer saying in Dornbirn,ask_temperature
+will it drop below freezing in Kals am Großglockner tonight,ask_temperature
+tell me the temperature at the Hahnenkamm tomorrow,ask_temperature
+is it hot in Eisenstadt today,ask_temperature
+how cold does it get up on the Ankogel,ask_temperature
+expected highs and lows in Spittal an der Drau on Sunday,ask_temperature
+how warm is the Stuhleck this morning,ask_temperature
+whats the air temperature on the Hochgolling right now,ask_temperature
+will the sun break through in Admont tomorrow,ask_sky
+is the Krippenstein above the inversion today,ask_sky
+how many clouds over Feldkirch on Saturday,ask_sky
+can I see the Großglockner from Heiligenblut tomorrow,ask_sky
+is it grey all day in Wiener Neustadt,ask_sky
+whats the cloud base at the Bischling this morning,ask_sky
+do we get clear conditions on the Mittagskogel tonight,ask_sky
+sunshine or shade in Gosau tomorrow afternoon,ask_sky
+is the view from the Gaisberg any good today,ask_sky
+will it be sunnyy at the Katschberg on Friday,ask_sky
+any dangerous gusts up at the Venet tomorrow,ask_wind
+how brisk is it at the Hohe Munde today,ask_wind
+wind strength at the Bischling this afternoon,ask_wind
+is there a lot of air movement on the Ötscher,ask_wind
+how many km h of wind at the Riesneralm on Sunday,ask_wind
+tell me about gust activity at the Sonnwendjoch,ask_wind
+is the breeze strong in Gaschurn today,ask_wind
+will there be a foehn storm in the Inn valley tomorrow,ask_wind
+how turbulent is it at the Elfer this morning,ask_wind
+whats the wind like at the Penken on Monday,ask_wind
+are we expecting any downpours in Melk tomorrow,ask_precipitation
+how deep will the new snow be at the Mölltaler Gletscher,ask_precipitation
+is it drizzling in Puchberg am Schneeberg right now,ask_precipitation
+do I need an umbrella in Gmunden today,ask_precipitation
+will the snow line drop below 1500 meters in the Montafon,ask_precipitation
+hail expected in Bad Hofgastein this afternoon,ask_precipitation
+amount of rainfall in Lech am Arlberg on Saturday,ask_precipitation
+is there powder at the Axamer Lizum tomorrow,ask_precipitation
+will it be raining when I start in Ramsau am Dachstein on Sunday,ask_precipitation
+chance of snow showers at the Kühtai tonight,ask_precipitation
+what kind of day is it in Hermagor,ask_overview
+break down the weather at the Stoderzinken for me tomorrow,ask_overview
+is it a nice day in Dornbirn today,ask_overview
+whats the big picture for the Hochkar on Saturday,ask_overview
+how does the weather shape up in Wagrain tomorrow,ask_overview
+anything I should know about the weather on the Ötscher,ask_overview
+whether in Serfaus on Sunday,ask_overview
+hoow is the weather in Mariazell,ask_overview
+whats going on weather wise at the Zauchensee tomorrow,ask_overview
+quick weather summary for Annaberg please,ask_overview
+oh hi there,greet
+gday,greet
+good morning to you,greet
+hey are you online,greet
+hello I hope you can assist me,greet
+hiya,greet
+hey PeakCast you there,greet
+good to see you,greet
+hello friend,greet
+hi gooed morning,greet
+alright that will be all,goodbye
+cheers mate,goodbye
+thanks for your help goodbye,goodbye
+gotta go now,goodbye
+much appreciated,goodbye
+ok im off,goodbye
+thanks a bunch,goodbye
+have a good evening,goodbye
+that answers it thank you,goodbye
+bye then see you soon,goodbye
+what is your favourite food,out_of_scope
+how many people live in Linz,out_of_scope
+can you reserve a table for two,out_of_scope
+whats the avalanche danger level in Vorarlberg,out_of_scope
+tell me the score of the match,out_of_scope
+how do I fix my car,out_of_scope
+are the lifts running at the Turracher Höhe,out_of_scope
+what language do they speak in Carinthia,out_of_scope
+remind me to call my mum,out_of_scope
+how high is the Dachstein,out_of_scope

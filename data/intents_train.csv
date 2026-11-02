@@ -1,0 +1,321 @@
+text,intent
+how warm is it in Innsbruck today,ask_temperature
+temperature on the Großglockner tomorrow,ask_temperature
+how cold will it be tonight in Obertauern,ask_temperature
+whats the temperature,ask_temperature
+how many degrees in Zell am See right now,ask_temperature
+is it freezing on the Dachstein,ask_temperature
+Could you tell me the expected temperature in Lienz on Saturday,ask_temperature
+how warm tomorrow,ask_temperature
+temperatur in Ischgl please,ask_temperature
+will it be cold on the Schneeberg on Sunday,ask_temperature
+degrees in Mayrhofen this afternoon,ask_temperature
+how hot does it get in Graz tomorrow,ask_temperature
+is it below zero on the Wildspitze,ask_temperature
+what temperature should I expect at the Kitzsteinhorn,ask_temperature
+how chilly is it in Bad Gastein in the morning,ask_temperature
+tempature for Soelden on Friday,ask_temperature
+how warm is the valley in Mittersill today,ask_temperature
+how cold is it on the Hochkönig tomorrow I need to pick a jacket,ask_temperature
+air temperature at the Patscherkofel summit,ask_temperature
+what are the temperatures in Villach on Monday,ask_temperature
+how cold at night in Heiligenblut,ask_temperature
+is it warm enough for shorts in Klagenfurt today,ask_temperature
+minimum temperature in Tamsweg tonight,ask_temperature
+whats the high for tomorrow in Salzburg,ask_temperature
+how warm in Kitzbühel,ask_temperature
+temperature please,ask_temperature
+is it going to be freezing cold on the Hochschwab on Thursday,ask_temperature
+how many degrees celsius in Seefeld tomorrow morning,ask_temperature
+feels like temperature in Schladming,ask_temperature
+will it get above ten degrees in Hallstatt,ask_temperature
+how cold is the Großvenediger right now,ask_temperature
+temperature forecast for Nassfeld on Wednesday,ask_temperature
+is it mild in Bregenz today,ask_temperature
+how low do temperatures drop on the Sonnblick tonight,ask_temperature
+warm or cold in Flachau tomorrow,ask_temperature
+I would like to know the temperature in Krems on Tuesday,ask_temperature
+how warm will it be at the Gerlitzen take off,ask_temperature
+whats it like temperature wise on the Rax,ask_temperature
+degrees tomorrow in Alpbach,ask_temperature
+is the temperature dropping in Obergurgl tonight,ask_temperature
+will it be sunny in Innsbruck tomorrow,ask_sky
+is it cloudy on the Dachstein today,ask_sky
+do I get a view from the Schneeberg on Sunday,ask_sky
+how is the visibility on the Großglockner,ask_sky
+clear skies in Ischgl tonight,ask_sky
+is the sun out in Zell am See,ask_sky
+will there be fog in the valley near Lienz tomorrow morning,ask_sky
+blue sky or clouds in Kitzbühel today,ask_sky
+cloud cover on the Wildspitze on Saturday,ask_sky
+is it overcast in Graz right now,ask_sky
+how much sun can I expect in Saalbach tomorrow,ask_sky
+will the summit of the Hochkönig be in the clouds,ask_sky
+sunny or clody in Soelden,ask_sky
+is there a chance of a clear view from the Patscherkofel this afternoon,ask_sky
+how cloudy is it in Villach,ask_sky
+do we get sunshine on Monday in Schladming,ask_sky
+will the Grimming be free of clouds tomorrow,ask_sky
+visibility on the Hochschwab on Thursday,ask_sky
+is it foggy in Hallstatt this morning,ask_sky
+sunshine hours in Bad Gastein tomorrow,ask_sky
+will I see the stars from the Krippenstein tonight,ask_sky
+is the sky clear over Mayrhofen,ask_sky
+cloudy in Bregenz on Friday,ask_sky
+can I expect a good panorama from the Untersberg today,ask_sky
+will the clouds break up in Mittersill this afternoon,ask_sky
+is it sunny,ask_sky
+how is the cloud situation at the Kitzsteinhorn tomorrow,ask_sky
+any sunshine in Klagenfurt on Wednesday,ask_sky
+will the fog lift on the Gerlitzen in the morning,ask_sky
+is it bright or grey in Salzburg today,ask_sky
+clear or cloudy on the Großvenediger tomorrow,ask_sky
+will the peaks be visible from Heiligenblut,ask_sky
+is there a cloud base problem at the Emberger Alm,ask_sky
+how good is the view from the Schöckl today,ask_sky
+sunny spells in Seefeld tomorrow,ask_sky
+is the summit of the Rax above the cloud layer,ask_sky
+Will the sky be clear enough for sunrise photos on the Dobratsch,ask_sky
+partly cloudy in Flachau on Saturday,ask_sky
+is it hazy in Krems today,ask_sky
+do I need to expect low clouds at the Stoderzinken tomorrow,ask_sky
+how windy is it on the Hochkönig tomorrow,ask_wind
+wind speed in Zell am See today,ask_wind
+are there strong gusts on the Dachstein,ask_wind
+is it calm at the Emberger Alm this morning,ask_wind
+whats the wind doing in Innsbruck,ask_wind
+gusts on the Großglockner on Saturday,ask_wind
+is it too windy to fly from the Gerlitzen today,ask_wind
+wind forecast for Kössen tomorrow,ask_wind
+how strong is the wind in Ischgl,ask_wind
+kilometers per hour wind in Villach right now,ask_wind
+is there any breeze in Graz this afternoon,ask_wind
+windspeed at the Schmittenhöhe please,ask_wind
+will it be gusty on the Wildspitze on Sunday,ask_wind
+how are the thermals at the Stoderzinken tomorrow,ask_wind
+is the wind picking up in Lienz tonight,ask_wind
+wind on the Schneeberg,ask_wind
+can I launch at Greifenburg tomorrow morning or is it windy,ask_wind
+how much wind in Kitzbühel on Monday,ask_wind
+are conditions calm in Mayrhofen today,ask_wind
+strong winds expected in Bregenz,ask_wind
+wind direction and speed at the Hochstein,ask_wind
+is it blowing hard on the Patscherkofel this afternoon,ask_wind
+foehn wind in Innsbruck tomorrow,ask_wind
+gust speeds at the Kitzsteinhorn on Thursday,ask_wind
+windy in Salzburg,ask_wind
+will the wind drop in the evening at the Hohe Wand,ask_wind
+how windy on the Grimming on Friday,ask_wind
+wind conditions for paragliding at the Zwölferhorn,ask_wind
+is it a windy day in Klagenfurt,ask_wind
+wind speed on the Hochschwab tomorrow,ask_wind
+how fast is the wind at the Feuerkogel right now,ask_wind
+gusty or calm in Obertauern this afternoon,ask_wind
+is the wind strong in Hallstatt today,ask_wind
+wind at the summit of the Großvenediger on Saturday,ask_wind
+how is the wind in Seefeld tomorrow,ask_wind
+are there dangerous gusts at the Loser,ask_wind
+is it windy enough for kiting at the Nassfeld,ask_wind
+wind report for Schladming please,ask_wind
+how strong are the gusts in Bad Gastein tonight,ask_wind
+wil it be windy on the Untersberg tomorow,ask_wind
+will it rain in Innsbruck tomorrow,ask_precipitation
+how much fresh snow on the Dachstein,ask_precipitation
+is it raining in Graz right now,ask_precipitation
+snowfall in Ischgl tonight,ask_precipitation
+do I need a rain jacket in Salzburg today,ask_precipitation
+any showers expected on the Schneeberg on Sunday,ask_precipitation
+will it snow at the Kitzsteinhorn tomorrow,ask_precipitation
+precipitation in Villach this afternoon,ask_precipitation
+how many centimeters of new snow in Obertauern,ask_precipitation
+is rain coming to Zell am See,ask_precipitation
+will it be wet on the Hochkönig on Saturday,ask_precipitation
+rainig in Lienz,ask_precipitation
+snow conditions overnight at Sölden,ask_precipitation
+chance of rain in Klagenfurt tomorrow,ask_precipitation
+will there be thunderstorms in Mayrhofen this afternoon,ask_precipitation
+how much rain in Bregenz on Monday,ask_precipitation
+fresh snow at the Hintertux glacier,ask_precipitation
+is it going to pour in Hallstatt today,ask_precipitation
+will it snwo in Saalbach tomorrow,ask_precipitation
+rain forecast for Kitzbuehel,ask_precipitation
+any precipitation on the Wildspitze on Thursday,ask_precipitation
+will the trail be wet on the Rax tomorrow,ask_precipitation
+snowfall amount at the Turracher Höhe tonight,ask_precipitation
+is drizzle expected in Krems this morning,ask_precipitation
+rain or snow on the Grossglockner on Friday,ask_precipitation
+how much snow fell on the Grimming,ask_precipitation
+will I get soaked on the Hochschwab today,ask_precipitation
+showers in Seefeld tomorrow afternoon,ask_precipitation
+does it rain in Bad Gastein on Wednesday,ask_precipitation
+new snow in Mittersill,ask_precipitation
+is there sleet at the Nassfeld today,ask_precipitation
+will it rain tonight,ask_precipitation
+snow depth forecast for Flachau tomorrow,ask_precipitation
+heavy rain warning for Schladming,ask_precipitation
+will it stay dry on the Untersberg this afternoon,ask_precipitation
+is snow expected on the Großvenediger on Saturday,ask_precipitation
+rain in Heiligenblut tomorrow morning,ask_precipitation
+how wet will it be at the Gerlitzen today,ask_precipitation
+will it snow down to the valley in Alpbach,ask_precipitation
+any rain on Tuesday in Tamsweg,ask_precipitation
+hows the weather in Innsbruck today,ask_overview
+whats the weather like tomorrow,ask_overview
+give me the forecast for the Dachstein on Saturday,ask_overview
+weather in Zell am See please,ask_overview
+how are conditions on the Großglockner tomorrow,ask_overview
+whats it like in Ischgl right now,ask_overview
+general weather for Lienz on Sunday,ask_overview
+can you give me a weather overview for Kitzbühel,ask_overview
+wheater in Graz tomorrow,ask_overview
+how is the weather up on the Schneeberg,ask_overview
+forecast for Villach this afternoon,ask_overview
+whats the weather doing in Salzburg,ask_overview
+tell me about the weather in Mayrhofen on Monday,ask_overview
+conditions on the Hochkönig for a ski tour tomorrow,ask_overview
+how does tomorrow look in Sölden,ask_overview
+whats the outlook for Bregenz on Friday,ask_overview
+weather report for Hallstatt today,ask_overview
+how is it out there in Klagenfurt,ask_overview
+summarize the weather for the Wildspitze on Thursday,ask_overview
+whats the forcast for Seefeld,ask_overview
+is the weather good for hiking on the Rax tomorrow,ask_overview
+overall conditions at the Kitzsteinhorn today,ask_overview
+how will the weather be in Bad Gastein this weekend,ask_overview
+weather for Schladming on Wednesday,ask_overview
+whats up with the weather in Obertauern,ask_overview
+how is the weather on the Grimming right now,ask_overview
+give me the full picture for Saalbach tomorrow,ask_overview
+weather situation in Krems today,ask_overview
+is the weather okay for a tour on the Hochschwab on Saturday,ask_overview
+how is it looking in Mittersill tomorrow morning,ask_overview
+whats the weather in Flachau tonight,ask_overview
+forecast please,ask_overview
+weather on the Großvenediger on Sunday,ask_overview
+how is everything looking at the Nassfeld today,ask_overview
+tell me the weather for Heiligenblut tomorrow,ask_overview
+whats the general situation on the Untersberg this afternoon,ask_overview
+how is the weather in Alpbach on Tuesday,ask_overview
+daily forecast for the Gerlitzen,ask_overview
+hows it looking for Tamsweg tomorrow,ask_overview
+weather update for Bregenz,ask_overview
+hi,greet
+hello,greet
+hey there,greet
+good morning,greet
+good evening,greet
+hi there,greet
+hello PeakCast,greet
+hey,greet
+good afternoon,greet
+greetings,greet
+morning,greet
+hello are you there,greet
+hi can you help me,greet
+hey whats up,greet
+good day,greet
+hello again,greet
+hi PeakCast I need some help,greet
+yo,greet
+hallo,greet
+hey bot,greet
+good morning PeakCast,greet
+hi how are you,greet
+hello there,greet
+hey good to see you,greet
+hi im new here,greet
+hello can we start,greet
+heya,greet
+hi quick question,greet
+good evening PeakCast,greet
+hey I have a question,greet
+hi again,greet
+helo,greet
+hello nice to meet you,greet
+hi all,greet
+hey hello,greet
+hi there PeakCast,greet
+good morning everyone,greet
+hi hope you can help,greet
+hello I would like to ask something,greet
+hey morning,greet
+bye,goodbye
+goodbye,goodbye
+see you,goodbye
+thanks,goodbye
+thank you,goodbye
+thanks a lot,goodbye
+bye bye,goodbye
+see you later,goodbye
+thanks that helps,goodbye
+thank you very much,goodbye
+ok thanks,goodbye
+cheers,goodbye
+thanks bye,goodbye
+have a nice day,goodbye
+good night,goodbye
+thats all thanks,goodbye
+perfect thank you,goodbye
+thx,goodbye
+great thanks,goodbye
+see ya,goodbye
+bye for now,goodbye
+thank you PeakCast,goodbye
+im done thanks,goodbye
+that was helpful thanks,goodbye
+alright bye,goodbye
+many thanks,goodbye
+ciao,goodbye
+thanks for the info,goodbye
+ok bye,goodbye
+appreciate it,goodbye
+thank you so much,goodbye
+nice one thanks,goodbye
+talk to you later,goodbye
+thanks again,goodbye
+goodbye PeakCast,goodbye
+thats it bye,goodbye
+tanks,goodbye
+super thanks,goodbye
+enough for today bye,goodbye
+thanks have a good one,goodbye
+whats your name,out_of_scope
+who built you,out_of_scope
+can you book me a hotel in Innsbruck,out_of_scope
+tell me a joke,out_of_scope
+what time is it,out_of_scope
+how old are you,out_of_scope
+are you a robot,out_of_scope
+play some music,out_of_scope
+whats the capital of Austria,out_of_scope
+can you order a pizza,out_of_scope
+how do I get to Zell am See by train,out_of_scope
+what is the avalanche risk on the Dachstein,out_of_scope
+do you like skiing,out_of_scope
+whats 2 plus 2,out_of_scope
+recommend a good restaurant in Salzburg,out_of_scope
+how much does a lift ticket cost in Ischgl,out_of_scope
+can you translate this to German,out_of_scope
+what are you doing,out_of_scope
+tell me about the history of Vienna,out_of_scope
+is the cable car open on the Kitzsteinhorn,out_of_scope
+who won the world cup,out_of_scope
+can you call my friend,out_of_scope
+what should I cook tonight,out_of_scope
+how long is the hiking trail to the Grimming,out_of_scope
+do I need crampons for the Großglockner,out_of_scope
+whats your favourite mountain,out_of_scope
+send an email to my boss,out_of_scope
+how do I tie a figure eight knot,out_of_scope
+what does PeakCast mean,out_of_scope
+can you help me with my homework,out_of_scope
+is there a hut open near the Hochschwab,out_of_scope
+whats the news today,out_of_scope
+convert 10 kilometers to miles,out_of_scope
+do you have feelings,out_of_scope
+book a flight to Vienna,out_of_scope
+what is the elevation of the Wildspitze,out_of_scope
+i love hiking,out_of_scope
+can you speak German,out_of_scope
+set an alarm for 6 am,out_of_scope
+whats the avalanche bulletin for Tirol,out_of_scope
