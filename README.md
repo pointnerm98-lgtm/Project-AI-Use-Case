@@ -91,17 +91,32 @@ environment can be rebuilt identically.
 - [x] **Step 1** — project setup: virtual environment, folder structure, git repository
 - [x] **Step 2** — training and test data: 320 training and 80 test sentences, 8 intents
 - [x] **Step 3** — baseline intent model trained and evaluated
-- [ ] Later steps — model optimisation, slot extraction, weather service,
-      dialogue manager (incl. rule-based avalanche safety guard), Streamlit UI
+- [x] **Step 4** — iteration 1: grid search, character n-grams, usable threshold
+- [ ] Later steps — slot extraction, weather service, dialogue manager
+      (incl. rule-based avalanche safety guard), Streamlit UI
 
 ### Running the intent classifier
 
+Run in this order from the project root:
+
 ```bash
-python scripts/train_intent.py      # cross-validate and save models/intent_model.joblib
-python scripts/evaluate_intent.py   # test-set metrics into reports/
-python scripts/try_intent.py        # type sentences and see the predicted intent
+python scripts/train_intent.py                     # baseline: 5-fold CV, saves the model
+python scripts/evaluate_intent.py                  # baseline test metrics -> reports/
+python scripts/optimize_intent.py                  # iteration 1: grid search + threshold
+python scripts/evaluate_intent.py --variant iter1  # iteration 1 test metrics -> reports/
+python scripts/compare_iterations.py               # before/after chart + spot-checks
+python scripts/try_intent.py                       # interactive: type a sentence
 ```
 
-Baseline result: **0.775 test accuracy** (5-fold cross-validation on the training
-set: 0.678). Metrics, the confusion matrix and every misclassified sentence are
-written to `reports/`.
+| Model | CV accuracy (train) | Test accuracy | Macro F1 |
+| --- | --- | --- | --- |
+| Baseline — word TF-IDF + logistic regression | 0.678 | 0.775 | 0.778 |
+| **Iteration 1** — word + character n-grams, grid-searched | **0.803** | **0.813** | **0.812** |
+
+All metrics, confusion matrices, the grid search table and every misclassified
+sentence are written to `reports/`.
+
+> **Safety note:** the classifier labels *"avalanche risk after the fresh snow"* as a
+> precipitation question with high confidence. Avalanche questions are therefore
+> handled by a rule-based guard **before** the classifier, which refers the user to the
+> official avalanche warning service. See `DEVLOG.md`, steps 2 and 4.

@@ -1,0 +1,98 @@
+{
+  "model": "iter1: word 1-2 grams + char_wb n-grams + LogisticRegression",
+  "best_params": {
+    "C": 10.0,
+    "char_ngram_range": [
+      2,
+      4
+    ]
+  },
+  "cv_mean_accuracy": 0.8031,
+  "cv_std_accuracy": 0.0581,
+  "oof_accuracy": 0.8031,
+  "oof_mean_confidence_correct": 0.6794,
+  "oof_mean_confidence_wrong": 0.3897,
+  "n_features": 4313,
+  "threshold_analysis": [
+    {
+      "threshold": 0.2,
+      "caught_errors": 1,
+      "lost_answers": 0,
+      "remaining_errors": 62,
+      "error_catch_rate": 0.016,
+      "correct_answer_loss_rate": 0.0
+    },
+    {
+      "threshold": 0.25,
+      "caught_errors": 8,
+      "lost_answers": 4,
+      "remaining_errors": 55,
+      "error_catch_rate": 0.127,
+      "correct_answer_loss_rate": 0.016
+    },
+    {
+      "threshold": 0.3,
+      "caught_errors": 13,
+      "lost_answers": 12,
+      "remaining_errors": 50,
+      "error_catch_rate": 0.206,
+      "correct_answer_loss_rate": 0.047
+    },
+    {
+      "threshold": 0.35,
+      "caught_errors": 27,
+      "lost_answers": 20,
+      "remaining_errors": 36,
+      "error_catch_rate": 0.429,
+      "correct_answer_loss_rate": 0.078
+    },
+    {
+      "threshold": 0.4,
+      "caught_errors": 37,
+      "lost_answers": 40,
+      "remaining_errors": 26,
+      "error_catch_rate": 0.587,
+      "correct_answer_loss_rate": 0.156
+    },
+    {
+      "threshold": 0.45,
+      "caught_errors": 49,
+      "lost_answers": 51,
+      "remaining_errors": 14,
+      "error_catch_rate": 0.778,
+      "correct_answer_loss_rate": 0.198
+    },
+    {
+      "threshold": 0.5,
+      "caught_errors": 51,
+      "lost_answers": 62,
+      "remaining_errors": 12,
+      "error_catch_rate": 0.81,
+      "correct_answer_loss_rate": 0.241
+    },
+    {
+      "threshold": 0.55,
+      "caught_errors": 55,
+      "lost_answers": 79,
+      "remaining_errors": 8,
+      "error_catch_rate": 0.873,
+      "correct_answer_loss_rate": 0.307
+    },
+    {
+      "threshold": 0.6,
+      "caught_errors": 60,
+      "lost_answers": 87,
+      "remaining_errors": 3,
+      "error_catch_rate": 0.952,
+      "correct_answer_loss_rate": 0.339
+    },
+    {
+      "threshold": 0.7,
+      "caught_errors": 62,
+      "lost_answers": 125,
+      "remaining_errors": 1,
+      "error_catch_rate": 0.984,
+      "correct_answer_loss_rate": 0.486
+    }
+  ]
+}

@@ -247,7 +247,11 @@ Two independent findings:
    the prediction written down in step 2: the deliberate typos (`sunnyy`, `tomorow`,
    `wheater`, `gday`, `hiya`) share no *word* with any training sentence, so a word-level
    vectorizer sees them as entirely unknown input. Character n-grams still match
-   `sunny`/`sunnyy`. Four of the 18 test errors are exactly such typo or short-form cases.
+   `sunny`/`sunnyy`. (Correction made in step 4: the first draft of this entry claimed
+   "four of the 18 test errors" were typo cases. Measured properly against the
+   baseline's own vocabulary, **15 of the 18** errors contain at least one token the
+   baseline had never seen — the problem is unknown words in general, of which the
+   deliberate typos are only one kind. See step 4.)
 2. **Raising `C` to 3 roughly doubles the confidence of correct predictions**, which is
    what makes a threshold possible at all.
 
@@ -280,3 +284,128 @@ to show the optimisation path rather than a single tuned number.
 - `reports/metrics_baseline.json`
 - `reports/misclassified_baseline.csv` (18 rows, with the probability of both the
   predicted and the true intent, so near-misses can be told from confident errors)
+
+---
+
+## Step 4 — Iteration 1: grid search, better features, usable threshold (2026-11-03)
+
+### What was changed and why
+
+The step 3 baseline had two separate defects: it could not read misspelled or unseen
+words, and its probabilities were too compressed to support a fallback threshold.
+Iteration 1 addresses both, and **every choice was made on cross-validation** — the
+test set was evaluated exactly once, after the model was already fixed.
+
+- **Features:** a `FeatureUnion` of the original word 1-2 grams **and** `char_wb`
+  character n-grams. `char_wb` keeps n-grams inside word boundaries, so it never
+  creates a feature spanning two unrelated words.
+- **Hyper-parameters:** `GridSearchCV` over `C ∈ {0.3, 1, 3, 10, 30}` and
+  `char_ngram_range ∈ {(2,4), (3,5), (2,5)}` — 15 combinations, 5-fold stratified
+  shuffled CV with the project seed, 75 fits. The grid was kept small on purpose:
+  with 320 sentences, a large grid mostly fits noise and makes the winner more likely
+  to be a lucky split.
+- **Winner:** `C = 10.0`, `char_ngram_range = (2, 4)`, mean CV accuracy **0.8031**.
+  Full grid in `reports/grid_search_iter1.csv`.
+- Note how flat the top of the grid is: ranks 2–5 all sit at 0.7969, within one
+  standard deviation (~0.058) of the winner. The honest reading is "word+char with
+  C somewhere between 3 and 30", not "C=10 with a (2,4) range is optimal".
+
+### Results
+
+| Metric | Baseline | Iteration 1 | Change |
+| --- | --- | --- | --- |
+| Cross-validation accuracy (train) | 0.6781 | **0.8031** | **+12.5 pts** |
+| Test accuracy | 0.7750 | **0.8125** | +3.7 pts |
+| Macro F1 (test) | 0.7775 | **0.8118** | +3.4 pts |
+| Mean confidence of correct answers | 0.3451 | **0.7354** | +39.0 pts |
+| Test errors | 18 / 80 | **15 / 80** | −3 |
+| Features | 1 298 | 4 313 | ×3.3 |
+
+Chart for the slide: `reports/comparison_baseline_vs_iter1.png`.
+
+**The CV gain (+12.5) is the trustworthy number; the test gain (+3.7) is three
+sentences.** Both are reported because they disagree in size, and that disagreement is
+itself the lesson: 80 test sentences cannot resolve a difference this small. The
+confidence gain is the largest and the most consequential one in practice, because it
+is what makes a fallback possible at all.
+
+### The threshold, re-derived
+
+Re-derived from out-of-fold CV predictions of the *new* model (same method as step 3,
+still never on the test set):
+
+| threshold | errors caught | correct answers lost |
+| --- | --- | --- |
+| 0.30 | 20.6 % | 4.7 % |
+| **0.35** | **42.9 %** | **7.8 %** |
+| 0.40 | 58.7 % | 15.6 % |
+| 0.45 | 77.8 % | 19.8 % |
+
+`CONFIDENCE_THRESHOLD` is now **0.35** (was a provisional 0.25). It is the knee of the
+curve: moving to 0.40 catches 10 more errors but sacrifices 20 more correct answers,
+and 0.45 would make the bot ask back on roughly a third of all messages — unusable for
+someone standing at a trailhead. The reasoning is written into the constant's comment
+in `peakcast/intent_classifier.py` so it does not have to be rediscovered later.
+
+For contrast, the baseline had **no** usable operating point at all.
+
+### Spot-check 1 — the avalanche sentence got *worse*
+
+| | baseline | iteration 1 |
+| --- | --- | --- |
+| `"avalanche risk after the fresh snow"` | `ask_precipitation` p = 0.25 | `ask_precipitation` **p = 0.62** |
+
+Still wrong, and now **confidently** wrong: 0.62 is far above the 0.35 fallback
+threshold, so the improved bot would answer a safety question with a snow forecast
+without hesitating, where the baseline at least sat near the uncertainty region.
+
+This is the key finding of the step. **A better classifier made the safety case
+worse**, because "fresh snow" is strong precipitation evidence and the model has no
+concept of what the question is *for*. It confirms that the rule-based avalanche guard
+specified in the step 2 safety to-do is not a nice-to-have and cannot be replaced by
+either a better model or a confidence threshold. Good slide material: accuracy went up,
+safety went down.
+
+### Spot-check 2 — unseen words, measured rather than assumed
+
+Checked against the baseline's own vocabulary using its own preprocessor and tokenizer:
+**15 of the 18 baseline errors contain at least one token the baseline had never seen**
+(`sunnyy`, `gday`, `hiya`, but also `thermometer`, `drizzling`, `umbrella`, `powder`,
+`lifts`, and many place names). So the step 3 framing was too narrow — the weakness was
+unknown words in general, and the deliberate typos are just the most visible kind.
+
+How iteration 1 handled those 15:
+
+- **Fixed outright:** `"will it be sunnyy at the Katschberg on Friday"` → `ask_sky`
+  0.41 (was `ask_precipitation`), and `"hiya"` → `greet` 0.42 (was `out_of_scope`).
+  Both are exactly the character n-gram effect that was predicted in step 2.
+- **Still wrong but now safely rejected:** 5 of the remaining errors fall below the
+  0.35 threshold, so the bot asks back instead of answering. `"gday"` is one of them —
+  it moved to a different wrong intent but at p = 0.20, below the threshold.
+- **Still wrong and now more confident:** `"how high is the Dachstein"` → 0.62,
+  `"have a good evening"` → `greet` 0.80. Higher confidence cuts both ways: when the
+  model is wrong, the fallback no longer rescues it.
+
+### Code structure
+
+- `build_pipeline()` (baseline) is **unchanged and frozen** as the reference point;
+  `build_pipeline_iter1()` is a separate function. Re-running step 3 reproduces
+  0.6781 CV / 0.7750 test exactly, which was verified after the refactor.
+- `scripts/evaluate_intent.py` now takes `--variant baseline|iter1`. Both go through
+  one code path, so the two metric files are genuinely comparable rather than
+  produced by two drifting copies of the same code.
+- `analyse_thresholds()` moved into `peakcast/intent_classifier.py`, next to the
+  constant it derives.
+- `ACTIVE_MODEL_PATH` names the model the bot should use, so the dialogue manager will
+  not need to know which iteration is currently best.
+
+### Open points for the next step
+
+- The remaining errors are mostly **genuinely ambiguous phrasings**
+  (`"what kind of day is it in Hermagor"`, `"is it a nice day in Dornbirn today"`,
+  `"do I need an umbrella in Gmunden today"`) rather than vocabulary gaps. More
+  training sentences in those styles would help more than more hyper-parameter search.
+- `out_of_scope` remains the weakest intent (F1 0.70) and the mountain-infrastructure
+  case `"are the lifts running at the Turracher Höhe"` still leaks to `ask_wind`.
+- The concept's planned comparison against **sentence embeddings** is the natural
+  iteration 2.

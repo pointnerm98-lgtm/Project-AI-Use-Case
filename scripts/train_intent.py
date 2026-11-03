@@ -17,6 +17,7 @@ What it does:
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -30,6 +31,7 @@ from sklearn.model_selection import StratifiedKFold, cross_val_score
 from peakcast.intent_classifier import (
     MODEL_PATH,
     RANDOM_STATE,
+    REPORTS_DIR,
     TRAIN_CSV,
     build_pipeline,
     load_dataset,
@@ -39,6 +41,10 @@ from peakcast.intent_classifier import (
 # Number of cross-validation folds. With 40 sentences per intent this leaves
 # 8 sentences per intent in each validation fold.
 N_FOLDS: int = 5
+
+# Cross-validation summary, read by scripts/compare_iterations.py so the
+# comparison chart does not have to retrain anything.
+CV_JSON: Path = REPORTS_DIR / "cv_baseline.json"
 
 
 def run_cross_validation(texts: list[str], labels: list[str]) -> np.ndarray:
@@ -100,6 +106,23 @@ def main() -> None:
     vocabulary_size = len(pipeline.named_steps["tfidf"].vocabulary_)
     print(f"  TF-IDF features : {vocabulary_size}")
     print(f"  saved to        : {MODEL_PATH.relative_to(MODEL_PATH.parent.parent)}")
+
+    # Persist the cross-validation result for the before/after comparison.
+    CV_JSON.parent.mkdir(parents=True, exist_ok=True)
+    CV_JSON.write_text(
+        json.dumps(
+            {
+                "model": "baseline: word 1-2 gram TF-IDF + LogisticRegression",
+                "cv_mean_accuracy": round(float(scores.mean()), 4),
+                "cv_std_accuracy": round(float(scores.std()), 4),
+                "cv_fold_scores": [round(float(s), 4) for s in scores],
+                "n_features": int(vocabulary_size),
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    print(f"  CV summary      -> {CV_JSON.name}")
     print("\nDone. Next step: python scripts/evaluate_intent.py")
 
 

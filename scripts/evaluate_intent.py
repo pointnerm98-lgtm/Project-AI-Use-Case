@@ -1,22 +1,30 @@
-"""Evaluate the trained intent classifier on the held-out test set.
+"""Evaluate a trained intent classifier on the held-out test set.
 
 Run from the project root (after training):
 
-    python scripts/evaluate_intent.py
+    python scripts/evaluate_intent.py                    # baseline (step 3)
+    python scripts/evaluate_intent.py --variant iter1    # iteration 1 (step 4)
+
+Both variants go through exactly the same code path, so their metrics are
+directly comparable; only the model file and the output names differ.
 
 Produces, for the presentation:
 
 * a classification report on the console,
-* ``reports/confusion_matrix.png``       - where the model confuses intents,
-* ``reports/metrics_baseline.json``      - all metrics as machine-readable data,
-* ``reports/misclassified_baseline.csv`` - every wrong prediction with its
-  probability, used to document the iterative optimisation,
-* a confidence-threshold analysis that answers "below which probability should
-  the bot say it did not understand?".
+* a confusion matrix PNG         - where the model confuses intents,
+* a metrics JSON                 - all metrics as machine-readable data,
+* a misclassified CSV            - every wrong prediction with its probability,
+  used to document the iterative optimisation.
+
+The confidence threshold itself is **not** derived here. It is a tuned
+parameter and is therefore taken from out-of-fold cross-validation in
+``scripts/optimize_intent.py``; this script only reports how the already-chosen
+threshold behaves on the test set.
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 from datetime import date
@@ -43,20 +51,60 @@ from sklearn.metrics import (
 )
 
 from peakcast.intent_classifier import (
+    CONFIDENCE_THRESHOLD,
     INTENT_LABELS,
+    ITER1_MODEL_PATH,
     MODEL_PATH,
     REPORTS_DIR,
     TEST_CSV,
+    analyse_thresholds,
     load_dataset,
     load_model,
 )
 
-CONFUSION_MATRIX_PNG: Path = REPORTS_DIR / "confusion_matrix.png"
-METRICS_JSON: Path = REPORTS_DIR / "metrics_baseline.json"
-MISCLASSIFIED_CSV: Path = REPORTS_DIR / "misclassified_baseline.csv"
 
-# Candidate thresholds for the "I did not understand" fallback.
-CANDIDATE_THRESHOLDS: tuple[float, ...] = (0.30, 0.35, 0.40, 0.45, 0.50, 0.60, 0.70)
+class Variant:
+    """Which model to evaluate and where its report files go.
+
+    Grouping these together keeps the baseline artefacts from step 3 untouched
+    when the improved model is evaluated.
+    """
+
+    def __init__(
+        self,
+        name: str,
+        description: str,
+        model_path: Path,
+        confusion_png: str,
+        metrics_json: str,
+        misclassified_csv: str,
+    ) -> None:
+        self.name = name
+        self.description = description
+        self.model_path = model_path
+        self.confusion_png = REPORTS_DIR / confusion_png
+        self.metrics_json = REPORTS_DIR / metrics_json
+        self.misclassified_csv = REPORTS_DIR / misclassified_csv
+
+
+VARIANTS: dict[str, Variant] = {
+    "baseline": Variant(
+        name="baseline",
+        description="baseline TF-IDF (word 1-2 grams) + LogisticRegression",
+        model_path=MODEL_PATH,
+        confusion_png="confusion_matrix.png",
+        metrics_json="metrics_baseline.json",
+        misclassified_csv="misclassified_baseline.csv",
+    ),
+    "iter1": Variant(
+        name="iter1",
+        description="iteration 1: word 1-2 grams + char_wb n-grams + LogisticRegression",
+        model_path=ITER1_MODEL_PATH,
+        confusion_png="confusion_matrix_improved.png",
+        metrics_json="metrics_improved.json",
+        misclassified_csv="misclassified_improved.csv",
+    ),
+}
 
 
 def collect_predictions(
@@ -81,7 +129,9 @@ def collect_predictions(
     return predicted, confidences, probability_matrix
 
 
-def save_confusion_matrix(true_labels: list[str], predicted: list[str]) -> None:
+def save_confusion_matrix(
+    true_labels: list[str], predicted: list[str], variant: Variant
+) -> None:
     """Draw the confusion matrix and write it to reports/.
 
     Rows are the true intents, columns the predicted ones, so every off-diagonal
@@ -90,6 +140,7 @@ def save_confusion_matrix(true_labels: list[str], predicted: list[str]) -> None:
     Args:
         true_labels: Gold intents of the test set.
         predicted: Predicted intents.
+        variant: Which model is being evaluated; decides the output file.
     """
     matrix = confusion_matrix(true_labels, predicted, labels=INTENT_LABELS)
 
@@ -97,14 +148,17 @@ def save_confusion_matrix(true_labels: list[str], predicted: list[str]) -> None:
     display = ConfusionMatrixDisplay(matrix, display_labels=INTENT_LABELS)
     display.plot(ax=axes, cmap="Blues", colorbar=False, values_format="d")
 
-    axes.set_title("PeakCast baseline intent classifier\nconfusion matrix on the test set")
+    axes.set_title(
+        f"PeakCast intent classifier ({variant.name})\n"
+        "confusion matrix on the test set"
+    )
     axes.set_xlabel("predicted intent")
     axes.set_ylabel("true intent")
     plt.setp(axes.get_xticklabels(), rotation=45, ha="right")
     figure.tight_layout()
 
-    CONFUSION_MATRIX_PNG.parent.mkdir(parents=True, exist_ok=True)
-    figure.savefig(CONFUSION_MATRIX_PNG, dpi=150)
+    variant.confusion_png.parent.mkdir(parents=True, exist_ok=True)
+    figure.savefig(variant.confusion_png, dpi=150)
     plt.close(figure)
 
 
@@ -114,6 +168,7 @@ def save_misclassified(
     predicted: list[str],
     probability_matrix: np.ndarray,
     class_order: list[str],
+    variant: Variant,
 ) -> pd.DataFrame:
     """Write every wrong prediction to a CSV file.
 
@@ -164,72 +219,40 @@ def save_misclassified(
             "true_intent_probability",
         ],
     )
-    MISCLASSIFIED_CSV.parent.mkdir(parents=True, exist_ok=True)
-    frame.to_csv(MISCLASSIFIED_CSV, index=False, encoding="utf-8")
+    variant.misclassified_csv.parent.mkdir(parents=True, exist_ok=True)
+    frame.to_csv(variant.misclassified_csv, index=False, encoding="utf-8")
     return frame
 
 
-def analyse_thresholds(
-    true_labels: list[str], predicted: list[str], confidences: np.ndarray
-) -> list[dict[str, Any]]:
-    """Evaluate candidate confidence thresholds for the fallback answer.
-
-    A threshold trades two error types against each other:
-
-    * **caught errors** - wrong predictions below the threshold. The bot asks
-      back instead of answering wrongly. This is the benefit.
-    * **lost answers** - correct predictions below the threshold. The bot asks
-      back although it was right. This is the cost, and it is the more annoying
-      failure for a user standing at a trailhead.
-
-    Args:
-        true_labels: Gold intents.
-        predicted: Predicted intents.
-        confidences: Probability of each predicted intent.
+def parse_arguments() -> Variant:
+    """Read the command line and return the variant to evaluate.
 
     Returns:
-        One summary dict per candidate threshold.
+        The selected ``Variant``.
     """
-    correct = np.array(
-        [t == p for t, p in zip(true_labels, predicted)], dtype=bool
+    parser = argparse.ArgumentParser(
+        description="Evaluate a PeakCast intent classifier on the test set."
     )
-    total_errors = int((~correct).sum())
-
-    summaries: list[dict[str, Any]] = []
-    for threshold in CANDIDATE_THRESHOLDS:
-        below = confidences < threshold
-        caught_errors = int((below & ~correct).sum())
-        lost_answers = int((below & correct).sum())
-        remaining_errors = total_errors - caught_errors
-        summaries.append(
-            {
-                "threshold": threshold,
-                "caught_errors": caught_errors,
-                "lost_answers": lost_answers,
-                "remaining_errors": remaining_errors,
-                # Share of the wrong answers that the threshold intercepts.
-                "error_catch_rate": round(caught_errors / total_errors, 3)
-                if total_errors
-                else 0.0,
-                # Share of correct answers sacrificed to achieve that.
-                "correct_answer_loss_rate": round(
-                    lost_answers / int(correct.sum()), 3
-                )
-                if correct.any()
-                else 0.0,
-            }
-        )
-    return summaries
+    parser.add_argument(
+        "--variant",
+        choices=sorted(VARIANTS),
+        default="baseline",
+        help="Which trained model to evaluate (default: baseline).",
+    )
+    return VARIANTS[parser.parse_args().variant]
 
 
 def main() -> None:
     """Evaluate the saved model and write all report artefacts."""
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-    print("PeakCast - evaluating the baseline intent classifier")
-    print("=" * 55)
+    variant = parse_arguments()
 
-    pipeline = load_model(MODEL_PATH)
+    print(f"PeakCast - evaluating the intent classifier ({variant.name})")
+    print("=" * 58)
+    print(f"Model          : {variant.description}")
+
+    pipeline = load_model(variant.model_path)
     texts, true_labels = load_dataset(TEST_CSV)
     print(f"Test sentences : {len(texts)}")
 
@@ -255,13 +278,14 @@ def main() -> None:
         output_dict=True,
     )
 
-    save_confusion_matrix(true_labels, predicted)
-    print(f"Confusion matrix -> {CONFUSION_MATRIX_PNG.name}")
+    save_confusion_matrix(true_labels, predicted, variant)
+    print(f"Confusion matrix -> {variant.confusion_png.name}")
 
     misclassified = save_misclassified(
-        texts, true_labels, predicted, probability_matrix, class_order
+        texts, true_labels, predicted, probability_matrix, class_order, variant
     )
-    print(f"Misclassified    -> {MISCLASSIFIED_CSV.name} ({len(misclassified)} rows)")
+    print(f"Misclassified    -> {variant.misclassified_csv.name}"
+          f" ({len(misclassified)} rows)")
 
     print("\n--- misclassified test sentences ---")
     if misclassified.empty:
@@ -283,17 +307,22 @@ def main() -> None:
         print(f"  wrong predictions   : mean p={confidences[~correct_mask].mean():.3f}  "
               f"max p={confidences[~correct_mask].max():.3f}")
 
-    print("\n--- confidence threshold analysis ---")
+    # How the threshold chosen on cross-validation behaves on the test set.
+    # Shown for transparency only - the value itself is not picked here.
+    print(f"\n--- threshold analysis on the test set"
+          f" (CONFIDENCE_THRESHOLD = {CONFIDENCE_THRESHOLD:.2f}) ---")
     thresholds = analyse_thresholds(true_labels, predicted, confidences)
     print(f"  {'thresh':>7} {'caught errors':>14} {'lost answers':>13}"
           f" {'errors left':>12}")
     for entry in thresholds:
+        marker = "  <- chosen" if entry["threshold"] == CONFIDENCE_THRESHOLD else ""
         print(f"  {entry['threshold']:>7.2f} {entry['caught_errors']:>14}"
-              f" {entry['lost_answers']:>13} {entry['remaining_errors']:>12}")
+              f" {entry['lost_answers']:>13} {entry['remaining_errors']:>12}{marker}")
 
     # --- machine-readable metrics ------------------------------------------
     metrics: dict[str, Any] = {
-        "model": "baseline TF-IDF (word 1-2 grams) + LogisticRegression",
+        "model": variant.description,
+        "variant": variant.name,
         "evaluated_on": str(date.today()),
         "n_test_sentences": len(texts),
         "n_test_per_intent": len(texts) // len(INTENT_LABELS),
@@ -318,21 +347,23 @@ def main() -> None:
             if (~correct_mask).any()
             else None,
         },
+        "confidence_threshold_in_use": CONFIDENCE_THRESHOLD,
         "threshold_analysis": thresholds,
         "n_misclassified": int(len(misclassified)),
         # Reminder for anyone reading the numbers later, including the slides.
         "caveat": (
             "Only 10 test sentences per intent: one error shifts that intent's "
             "recall by 10 percentage points. Read per-intent values together "
-            "with the cross-validation mean from train_intent.py."
+            "with the cross-validation mean from train_intent.py / "
+            "optimize_intent.py."
         ),
     }
 
-    METRICS_JSON.parent.mkdir(parents=True, exist_ok=True)
-    METRICS_JSON.write_text(
+    variant.metrics_json.parent.mkdir(parents=True, exist_ok=True)
+    variant.metrics_json.write_text(
         json.dumps(metrics, indent=2, ensure_ascii=False), encoding="utf-8"
     )
-    print(f"\nMetrics          -> {METRICS_JSON.name}")
+    print(f"\nMetrics          -> {variant.metrics_json.name}")
 
 
 if __name__ == "__main__":

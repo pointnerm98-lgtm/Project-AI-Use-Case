@@ -1,0 +1,150 @@
+{
+  "model": "iteration 1: word 1-2 grams + char_wb n-grams + LogisticRegression",
+  "variant": "iter1",
+  "evaluated_on": "2026-11-03",
+  "n_test_sentences": 80,
+  "n_test_per_intent": 10,
+  "accuracy": 0.8125,
+  "macro_f1": 0.8118,
+  "weighted_f1": 0.8118,
+  "per_intent": {
+    "ask_temperature": {
+      "precision": 0.7273,
+      "recall": 0.8,
+      "f1": 0.7619,
+      "support": 10
+    },
+    "ask_sky": {
+      "precision": 0.7692,
+      "recall": 1.0,
+      "f1": 0.8696,
+      "support": 10
+    },
+    "ask_wind": {
+      "precision": 0.7778,
+      "recall": 0.7,
+      "f1": 0.7368,
+      "support": 10
+    },
+    "ask_precipitation": {
+      "precision": 0.7778,
+      "recall": 0.7,
+      "f1": 0.7368,
+      "support": 10
+    },
+    "ask_overview": {
+      "precision": 0.8889,
+      "recall": 0.8,
+      "f1": 0.8421,
+      "support": 10
+    },
+    "greet": {
+      "precision": 0.9,
+      "recall": 0.9,
+      "f1": 0.9,
+      "support": 10
+    },
+    "goodbye": {
+      "precision": 1.0,
+      "recall": 0.9,
+      "f1": 0.9474,
+      "support": 10
+    },
+    "out_of_scope": {
+      "precision": 0.7,
+      "recall": 0.7,
+      "f1": 0.7,
+      "support": 10
+    }
+  },
+  "confidence": {
+    "mean_correct": 0.7354,
+    "mean_wrong": 0.4062,
+    "max_wrong": 0.8018
+  },
+  "confidence_threshold_in_use": 0.35,
+  "threshold_analysis": [
+    {
+      "threshold": 0.2,
+      "caught_errors": 1,
+      "lost_answers": 0,
+      "remaining_errors": 14,
+      "error_catch_rate": 0.067,
+      "correct_answer_loss_rate": 0.0
+    },
+    {
+      "threshold": 0.25,
+      "caught_errors": 3,
+      "lost_answers": 1,
+      "remaining_errors": 12,
+      "error_catch_rate": 0.2,
+      "correct_answer_loss_rate": 0.015
+    },
+    {
+      "threshold": 0.3,
+      "caught_errors": 3,
+      "lost_answers": 2,
+      "remaining_errors": 12,
+      "error_catch_rate": 0.2,
+      "correct_answer_loss_rate": 0.031
+    },
+    {
+      "threshold": 0.35,
+      "caught_errors": 6,
+      "lost_answers": 7,
+      "remaining_errors": 9,
+      "error_catch_rate": 0.4,
+      "correct_answer_loss_rate": 0.108
+    },
+    {
+      "threshold": 0.4,
+      "caught_errors": 8,
+      "lost_answers": 9,
+      "remaining_errors": 7,
+      "error_catch_rate": 0.533,
+      "correct_answer_loss_rate": 0.138
+    },
+    {
+      "threshold": 0.45,
+      "caught_errors": 10,
+      "lost_answers": 11,
+      "remaining_errors": 5,
+      "error_catch_rate": 0.667,
+      "correct_answer_loss_rate": 0.169
+    },
+    {
+      "threshold": 0.5,
+      "caught_errors": 12,
+      "lost_answers": 14,
+      "remaining_errors": 3,
+      "error_catch_rate": 0.8,
+      "correct_answer_loss_rate": 0.215
+    },
+    {
+      "threshold": 0.55,
+      "caught_errors": 13,
+      "lost_answers": 15,
+      "remaining_errors": 2,
+      "error_catch_rate": 0.867,
+      "correct_answer_loss_rate": 0.231
+    },
+    {
+      "threshold": 0.6,
+      "caught_errors": 13,
+      "lost_answers": 16,
+      "remaining_errors": 2,
+      "error_catch_rate": 0.867,
+      "correct_answer_loss_rate": 0.246
+    },
+    {
+      "threshold": 0.7,
+      "caught_errors": 14,
+      "lost_answers": 22,
+      "remaining_errors": 1,
+      "error_catch_rate": 0.933,
+      "correct_answer_loss_rate": 0.338
+    }
+  ],
+  "n_misclassified": 15,
+  "caveat": "Only 10 test sentences per intent: one error shifts that intent's recall by 10 percentage points. Read per-intent values together with the cross-validation mean from train_intent.py / optimize_intent.py."
+}

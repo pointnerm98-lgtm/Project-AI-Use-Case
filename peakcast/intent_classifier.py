@@ -20,11 +20,13 @@ embeddings) have an honest reference point to improve on.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
+import numpy as np
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
-from sklearn.pipeline import Pipeline
+from sklearn.pipeline import FeatureUnion, Pipeline
 
 # --- Project paths ---------------------------------------------------------
 # Resolved relative to this file, so the scripts work no matter which
@@ -36,7 +38,18 @@ REPORTS_DIR: Path = PROJECT_ROOT / "reports"
 
 TRAIN_CSV: Path = DATA_DIR / "intents_train.csv"
 TEST_CSV: Path = DATA_DIR / "intents_test.csv"
+
+# Baseline model (step 3). Kept as a frozen reference point so that every later
+# iteration can be compared against the same numbers.
 MODEL_PATH: Path = MODELS_DIR / "intent_model.joblib"
+
+# Iteration 1 model (step 4): word + character n-grams, hyper-parameters chosen
+# by grid search on the training set.
+ITER1_MODEL_PATH: Path = MODELS_DIR / "intent_model_iter1.joblib"
+
+# The model the bot itself should use. Pointing at a named constant means the
+# dialogue manager does not have to know which iteration is currently best.
+ACTIVE_MODEL_PATH: Path = ITER1_MODEL_PATH
 
 # --- Reproducibility -------------------------------------------------------
 # One seed for everything that can shuffle or iterate randomly, so every run
@@ -48,17 +61,35 @@ RANDOM_STATE: int = 42
 # manager should answer "I did not understand that" and ask back instead of
 # guessing.
 #
-# PROVISIONAL for the baseline model. Derived from out-of-fold cross-validation
-# predictions (never from the test set, because a threshold is a tuned
-# parameter). The baseline's probabilities are compressed - its most confident
-# correct prediction reaches only ~0.35 - so no threshold separates right from
-# wrong answers cleanly: 0.25 intercepts 85% of the errors but also rejects 42%
-# of the *correct* answers. See DEVLOG.md, step 3.
+# Value for the ITERATION-1 model (step 4), re-derived from out-of-fold
+# cross-validation predictions of that model - never from the test set, because
+# a threshold is a tuned parameter and tuning it on test data would make the
+# reported test score optimistic.
 #
-# TO-DO: re-derive this value once the feature set is fixed (adding character
-# n-grams raises cross-validated accuracy from 0.68 to 0.79 and roughly doubles
-# the confidence of correct predictions).
-CONFIDENCE_THRESHOLD: float = 0.25
+# Chosen at the knee of the trade-off curve (see reports/cv_iter1.json):
+#
+#   threshold   errors caught   correct answers lost
+#       0.30        20.6 %              4.7 %
+#       0.35        42.9 %              7.8 %   <- chosen
+#       0.40        58.7 %             15.6 %
+#       0.45        77.8 %             19.8 %
+#
+# 0.35 is the last point where the trade is favourable: going to 0.40 catches
+# 10 more errors but sacrifices 20 more correct answers, and 0.45 would make the
+# bot ask back on roughly a third of all messages, which is unusable for someone
+# standing at a trailhead.
+#
+# For reference, the step 3 baseline could not support any threshold at all: its
+# most confident correct prediction reached only p = 0.35, so catching 85 % of
+# errors there cost 42 % of the correct answers.
+CONFIDENCE_THRESHOLD: float = 0.35
+
+# Threshold values examined by ``analyse_thresholds``. Wide enough to cover
+# both the compressed baseline probabilities and the better-separated ones of
+# the iteration-1 model.
+CANDIDATE_THRESHOLDS: tuple[float, ...] = (
+    0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50, 0.55, 0.60, 0.70,
+)
 
 # The eight intents of the bot, in the order used for reports and plots.
 # Fixed explicitly (rather than taken from the data) so that the confusion
@@ -148,7 +179,129 @@ def build_pipeline(random_state: int = RANDOM_STATE) -> Pipeline:
     return Pipeline([("tfidf", vectorizer), ("clf", classifier)])
 
 
-def train_and_save(model_path: Path = MODEL_PATH) -> Pipeline:
+def build_pipeline_iter1(
+    random_state: int = RANDOM_STATE,
+    C: float = 1.0,
+    char_ngram_range: tuple[int, int] = (3, 5),
+) -> Pipeline:
+    """Create the iteration-1 pipeline: word **and** character n-grams.
+
+    The baseline sees only whole words, so a misspelled sentence such as
+    "will it be sunnyy at the Katschberg" shares no feature at all with the
+    training data and the model has nothing to go on. Character n-grams fix
+    exactly that: ``sunny`` and ``sunnyy`` still share the sub-strings ``sunn``,
+    ``unny`` and so on.
+
+    ``char_wb`` is used rather than plain ``char`` because it builds n-grams
+    inside word boundaries, so it never creates a feature that spans two
+    unrelated words.
+
+    The two vectorizers run in parallel through a ``FeatureUnion`` and their
+    outputs are concatenated into one feature matrix.
+
+    Args:
+        random_state: Seed for the classifier.
+        C: Inverse regularisation strength. Larger values regularise less.
+            The default is scikit-learn's, so a grid search decides the value.
+        char_ngram_range: Length range of the character n-grams.
+
+    Returns:
+        An untrained scikit-learn ``Pipeline``.
+    """
+    word_vectorizer = TfidfVectorizer(
+        lowercase=True,
+        ngram_range=(1, 2),
+        sublinear_tf=True,
+        min_df=1,
+        strip_accents="unicode",
+    )
+
+    char_vectorizer = TfidfVectorizer(
+        analyzer="char_wb",
+        ngram_range=char_ngram_range,
+        lowercase=True,
+        sublinear_tf=True,
+        min_df=1,
+        strip_accents="unicode",
+    )
+
+    features = FeatureUnion(
+        [("word", word_vectorizer), ("char", char_vectorizer)]
+    )
+
+    classifier = LogisticRegression(
+        max_iter=2000,  # more features than the baseline, so allow more steps
+        C=C,
+        random_state=random_state,
+    )
+
+    return Pipeline([("feat", features), ("clf", classifier)])
+
+
+def analyse_thresholds(
+    true_labels: list[str] | np.ndarray,
+    predicted: list[str] | np.ndarray,
+    confidences: np.ndarray,
+    candidates: tuple[float, ...] = CANDIDATE_THRESHOLDS,
+) -> list[dict[str, Any]]:
+    """Evaluate candidate confidence thresholds for the fallback answer.
+
+    A threshold trades two error types against each other:
+
+    * **caught errors** - wrong predictions below the threshold. The bot asks
+      back instead of answering wrongly. This is the benefit.
+    * **lost answers** - correct predictions below the threshold. The bot asks
+      back although it was right. This is the cost, and it is the more annoying
+      failure for a user standing at a trailhead.
+
+    Lives here next to ``CONFIDENCE_THRESHOLD`` because it is the function that
+    derives that constant. It is applied to *out-of-fold cross-validation*
+    predictions rather than test predictions: a threshold is a tuned parameter,
+    and tuning it on the test set would make the reported test score optimistic.
+
+    Args:
+        true_labels: Gold intents.
+        predicted: Predicted intents.
+        confidences: Probability of each predicted intent.
+        candidates: Threshold values to evaluate.
+
+    Returns:
+        One summary dict per candidate threshold.
+    """
+    true_array = np.asarray(true_labels)
+    predicted_array = np.asarray(predicted)
+    correct = true_array == predicted_array
+
+    total_errors = int((~correct).sum())
+    total_correct = int(correct.sum())
+
+    summaries: list[dict[str, Any]] = []
+    for threshold in candidates:
+        below = confidences < threshold
+        caught_errors = int((below & ~correct).sum())
+        lost_answers = int((below & correct).sum())
+        summaries.append(
+            {
+                "threshold": threshold,
+                "caught_errors": caught_errors,
+                "lost_answers": lost_answers,
+                "remaining_errors": total_errors - caught_errors,
+                # Share of the wrong answers that the threshold intercepts.
+                "error_catch_rate": round(caught_errors / total_errors, 3)
+                if total_errors
+                else 0.0,
+                # Share of correct answers sacrificed to achieve that.
+                "correct_answer_loss_rate": round(lost_answers / total_correct, 3)
+                if total_correct
+                else 0.0,
+            }
+        )
+    return summaries
+
+
+def train_and_save(
+    model_path: Path = MODEL_PATH, pipeline: Pipeline | None = None
+) -> Pipeline:
     """Train the baseline pipeline on the training CSV and persist it.
 
     Used by ``scripts/train_intent.py`` and intended for the later app startup
@@ -156,6 +309,8 @@ def train_and_save(model_path: Path = MODEL_PATH) -> Pipeline:
 
     Args:
         model_path: Destination for the serialised pipeline.
+        pipeline: Pipeline to train. Defaults to the baseline pipeline; the
+            optimisation script passes the grid-searched iteration-1 pipeline.
 
     Returns:
         The fitted pipeline.
@@ -163,7 +318,8 @@ def train_and_save(model_path: Path = MODEL_PATH) -> Pipeline:
     import joblib  # imported here to keep the module importable without joblib
 
     texts, labels = load_dataset(TRAIN_CSV)
-    pipeline = build_pipeline()
+    if pipeline is None:
+        pipeline = build_pipeline()
     pipeline.fit(texts, labels)
 
     model_path.parent.mkdir(parents=True, exist_ok=True)

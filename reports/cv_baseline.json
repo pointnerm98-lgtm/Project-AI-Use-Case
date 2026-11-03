@@ -1,0 +1,13 @@
+{
+  "model": "baseline: word 1-2 gram TF-IDF + LogisticRegression",
+  "cv_mean_accuracy": 0.6781,
+  "cv_std_accuracy": 0.0689,
+  "cv_fold_scores": [
+    0.7031,
+    0.5625,
+    0.7344,
+    0.75,
+    0.6406
+  ],
+  "n_features": 1298
+}

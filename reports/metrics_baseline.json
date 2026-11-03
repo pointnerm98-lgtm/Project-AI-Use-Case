@@ -1,6 +1,7 @@
 {
   "model": "baseline TF-IDF (word 1-2 grams) + LogisticRegression",
-  "evaluated_on": "2026-11-02",
+  "variant": "baseline",
+  "evaluated_on": "2026-11-03",
   "n_test_sentences": 80,
   "n_test_per_intent": 10,
   "accuracy": 0.775,
@@ -61,7 +62,24 @@
     "mean_wrong": 0.2231,
     "max_wrong": 0.3459
   },
+  "confidence_threshold_in_use": 0.35,
   "threshold_analysis": [
+    {
+      "threshold": 0.2,
+      "caught_errors": 8,
+      "lost_answers": 9,
+      "remaining_errors": 10,
+      "error_catch_rate": 0.444,
+      "correct_answer_loss_rate": 0.145
+    },
+    {
+      "threshold": 0.25,
+      "caught_errors": 12,
+      "lost_answers": 19,
+      "remaining_errors": 6,
+      "error_catch_rate": 0.667,
+      "correct_answer_loss_rate": 0.306
+    },
     {
       "threshold": 0.3,
       "caught_errors": 17,
@@ -103,6 +121,14 @@
       "correct_answer_loss_rate": 0.871
     },
     {
+      "threshold": 0.55,
+      "caught_errors": 18,
+      "lost_answers": 56,
+      "remaining_errors": 0,
+      "error_catch_rate": 1.0,
+      "correct_answer_loss_rate": 0.903
+    },
+    {
       "threshold": 0.6,
       "caught_errors": 18,
       "lost_answers": 58,
@@ -120,5 +146,5 @@
     }
   ],
   "n_misclassified": 18,
-  "caveat": "Only 10 test sentences per intent: one error shifts that intent's recall by 10 percentage points. Read per-intent values together with the cross-validation mean from train_intent.py."
+  "caveat": "Only 10 test sentences per intent: one error shifts that intent's recall by 10 percentage points. Read per-intent values together with the cross-validation mean from train_intent.py / optimize_intent.py."
 }
