@@ -20,3 +20,12 @@ models/*.joblib
 
 # Keep the folder itself in git even when it holds no tracked files.
 !models/.gitkeep
+
+# The raw GeoNames country dump (52 912 rows, ~1.5 MB zipped). It is an input,
+# not a result: scripts/build_places.py re-downloads it on demand and writes
+# the compact data/places_at.csv, which IS tracked so the bot runs from the
+# submitted files without a download.
+data/geonames_raw/
+
+# pytest cache
+.pytest_cache/

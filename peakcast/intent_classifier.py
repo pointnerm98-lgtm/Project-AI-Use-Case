@@ -13,8 +13,8 @@ Keeping it here instead of inside the scripts has two reasons:
    file is missing" requirement noted in DEVLOG.md).
 
 Baseline design: TF-IDF features + logistic regression, as fixed in the concept.
-Deliberately kept simple so that later variants (character n-grams, sentence
-embeddings) have an honest reference point to improve on.
+Deliberately kept simple so that later variants (character n-grams, and optionally
+sentence embeddings) have an honest reference point to improve on.
 """
 
 from __future__ import annotations

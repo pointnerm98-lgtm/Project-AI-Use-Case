@@ -10,3 +10,4 @@ scikit-learn==1.9.1   # intent classifier: TF-IDF vectorizer + logistic regressi
 pandas==3.1.0         # reading and inspecting the training/test CSV files
 joblib==1.6.0         # saving and loading the trained model to models/
 matplotlib==3.11.2    # confusion matrix plot for the evaluation report
+pytest==9.2.0         # unit tests for the safety guard and slot extraction

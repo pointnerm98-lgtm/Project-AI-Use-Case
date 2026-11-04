@@ -1,0 +1,401 @@
+source,intent,sentence,place,state,feature_code,matched_text,fuzzy,day_offset,day_matched,part_of_day,day_is_default
+train,ask_temperature,how warm is it in Innsbruck today,Innsbruck,Tirol,PPLA,Innsbruck,False,0,today,,False
+train,ask_temperature,temperature on the Großglockner tomorrow,Großglockner,Tirol,MT,Großglockner,False,1,tomorrow,,False
+train,ask_temperature,how cold will it be tonight in Obertauern,Obertauern,Salzburg,PPL,Obertauern,False,0,tonight,night,False
+train,ask_temperature,whats the temperature,,,,,,0,,,True
+train,ask_temperature,how many degrees in Zell am See right now,Zell am See,Salzburg,PPLA3,Zell am See,False,0,right now,,False
+train,ask_temperature,is it freezing on the Dachstein,Hoher Dachstein,Oberösterreich,MT,Dachstein,False,0,,,True
+train,ask_temperature,Could you tell me the expected temperature in Lienz on Saturday,Lienz,Tirol,PPLA3,Lienz,False,3,on saturday,,False
+train,ask_temperature,how warm tomorrow,,,,,,1,tomorrow,,False
+train,ask_temperature,temperatur in Ischgl please,Ischgl,Tirol,PPLA3,Ischgl,False,0,,,True
+train,ask_temperature,will it be cold on the Schneeberg on Sunday,Schneeberg,Niederösterreich,PPL,Schneeberg,False,4,on sunday,,False
+train,ask_temperature,degrees in Mayrhofen this afternoon,Mayrhofen,Tirol,PPLA3,Mayrhofen,False,0,this afternoon,afternoon,False
+train,ask_temperature,how hot does it get in Graz tomorrow,Graz,Steiermark,PPLA,Graz,False,1,tomorrow,,False
+train,ask_temperature,is it below zero on the Wildspitze,Wildspitze,Tirol,MT,Wildspitze,False,0,,,True
+train,ask_temperature,what temperature should I expect at the Kitzsteinhorn,Kitzsteinhorn,Salzburg,MT,Kitzsteinhorn,False,0,,,True
+train,ask_temperature,how chilly is it in Bad Gastein in the morning,Bad Gastein,Salzburg,PPLA3,Bad Gastein,False,0,in the morning,morning,False
+train,ask_temperature,tempature for Soelden on Friday,Sölden,Tirol,PPLA3,Soelden,False,2,on friday,,False
+train,ask_temperature,how warm is the valley in Mittersill today,Mittersill,Salzburg,PPLA3,Mittersill,False,0,today,,False
+train,ask_temperature,how cold is it on the Hochkönig tomorrow I need to pick a jacket,Hochkönig,Salzburg,MT,Hochkönig,False,1,tomorrow,,False
+train,ask_temperature,air temperature at the Patscherkofel summit,Patscherkofel,Tirol,PK,Patscherkofel,False,0,,,True
+train,ask_temperature,what are the temperatures in Villach on Monday,Villach,Kärnten,PPLA2,Villach,False,5,on monday,,False
+train,ask_temperature,how cold at night in Heiligenblut,Heiligenblut,Kärnten,PPLA3,Heiligenblut,False,0,,,True
+train,ask_temperature,is it warm enough for shorts in Klagenfurt today,Klagenfurt am Wörthersee,Kärnten,PPLA,Klagenfurt,False,0,today,,False
+train,ask_temperature,minimum temperature in Tamsweg tonight,Tamsweg,Salzburg,PPLA3,Tamsweg,False,0,tonight,night,False
+train,ask_temperature,whats the high for tomorrow in Salzburg,Salzburg,Salzburg,PPLA,Salzburg,False,1,tomorrow,,False
+train,ask_temperature,how warm in Kitzbühel,Kitzbühel,Tirol,PPLA3,Kitzbühel,False,0,,,True
+train,ask_temperature,temperature please,,,,,,0,,,True
+train,ask_temperature,is it going to be freezing cold on the Hochschwab on Thursday,Hochschwab,Steiermark,PK,Hochschwab,False,1,on thursday,,False
+train,ask_temperature,how many degrees celsius in Seefeld tomorrow morning,Seefeld in Tirol,Tirol,PPLA3,Seefeld,False,1,tomorrow morning,morning,False
+train,ask_temperature,feels like temperature in Schladming,Schladming,Steiermark,PPLA3,Schladming,False,0,,,True
+train,ask_temperature,will it get above ten degrees in Hallstatt,Hallstatt,Oberösterreich,PPL,Hallstatt,False,0,,,True
+train,ask_temperature,how cold is the Großvenediger right now,Großvenediger,Tirol,MT,Großvenediger,False,0,right now,,False
+train,ask_temperature,temperature forecast for Nassfeld on Wednesday,Sonnenalpe Nassfeld,Kärnten,PPL,Nassfeld,False,0,on wednesday,,False
+train,ask_temperature,is it mild in Bregenz today,Bregenz,Vorarlberg,PPLA,Bregenz,False,0,today,,False
+train,ask_temperature,how low do temperatures drop on the Sonnblick tonight,Stubacher Sonnblick,Tirol,MT,Sonnblick,False,0,tonight,night,False
+train,ask_temperature,warm or cold in Flachau tomorrow,Flachau,Salzburg,PPLA3,Flachau,False,1,tomorrow,,False
+train,ask_temperature,I would like to know the temperature in Krems on Tuesday,Krems an der Donau,Niederösterreich,PPLA3,Krems,False,6,on tuesday,,False
+train,ask_temperature,how warm will it be at the Gerlitzen take off,Gerlitzen,Kärnten,PPL,Gerlitzen,False,0,,,True
+train,ask_temperature,whats it like temperature wise on the Rax,Rax,Burgenland,PPL,Rax,False,0,,,True
+train,ask_temperature,degrees tomorrow in Alpbach,Alpbach,Tirol,PPLA3,Alpbach,False,1,tomorrow,,False
+train,ask_temperature,is the temperature dropping in Obergurgl tonight,Obergurgl,Tirol,PPL,Obergurgl,False,0,tonight,night,False
+train,ask_sky,will it be sunny in Innsbruck tomorrow,Innsbruck,Tirol,PPLA,Innsbruck,False,1,tomorrow,,False
+train,ask_sky,is it cloudy on the Dachstein today,Hoher Dachstein,Oberösterreich,MT,Dachstein,False,0,today,,False
+train,ask_sky,do I get a view from the Schneeberg on Sunday,Schneeberg,Niederösterreich,PPL,Schneeberg,False,4,on sunday,,False
+train,ask_sky,how is the visibility on the Großglockner,Großglockner,Tirol,MT,Großglockner,False,0,,,True
+train,ask_sky,clear skies in Ischgl tonight,Ischgl,Tirol,PPLA3,Ischgl,False,0,tonight,night,False
+train,ask_sky,is the sun out in Zell am See,Zell am See,Salzburg,PPLA3,Zell am See,False,4,sun,,False
+train,ask_sky,will there be fog in the valley near Lienz tomorrow morning,Lienz,Tirol,PPLA3,Lienz,False,1,tomorrow morning,morning,False
+train,ask_sky,blue sky or clouds in Kitzbühel today,Kitzbühel,Tirol,PPLA3,Kitzbühel,False,0,today,,False
+train,ask_sky,cloud cover on the Wildspitze on Saturday,Wildspitze,Tirol,MT,Wildspitze,False,3,on saturday,,False
+train,ask_sky,is it overcast in Graz right now,Graz,Steiermark,PPLA,Graz,False,0,right now,,False
+train,ask_sky,how much sun can I expect in Saalbach tomorrow,Saalbach,Salzburg,PPL,Saalbach,False,1,tomorrow,,False
+train,ask_sky,will the summit of the Hochkönig be in the clouds,Hochkönig,Salzburg,MT,Hochkönig,False,0,,,True
+train,ask_sky,sunny or clody in Soelden,Sölden,Tirol,PPLA3,Soelden,False,0,,,True
+train,ask_sky,is there a chance of a clear view from the Patscherkofel this afternoon,Patscherkofel,Tirol,PK,Patscherkofel,False,0,this afternoon,afternoon,False
+train,ask_sky,how cloudy is it in Villach,Villach,Kärnten,PPLA2,Villach,False,0,,,True
+train,ask_sky,do we get sunshine on Monday in Schladming,Schladming,Steiermark,PPLA3,Schladming,False,5,on monday,,False
+train,ask_sky,will the Grimming be free of clouds tomorrow,Grimming,Steiermark,MT,Grimming,False,1,tomorrow,,False
+train,ask_sky,visibility on the Hochschwab on Thursday,Hochschwab,Steiermark,PK,Hochschwab,False,1,on thursday,,False
+train,ask_sky,is it foggy in Hallstatt this morning,Hallstatt,Oberösterreich,PPL,Hallstatt,False,0,this morning,morning,False
+train,ask_sky,sunshine hours in Bad Gastein tomorrow,Bad Gastein,Salzburg,PPLA3,Bad Gastein,False,1,tomorrow,,False
+train,ask_sky,will I see the stars from the Krippenstein tonight,Hoher Krippenstein,Oberösterreich,MT,Krippenstein,True,0,tonight,night,False
+train,ask_sky,is the sky clear over Mayrhofen,Mayrhofen,Tirol,PPLA3,Mayrhofen,False,0,,,True
+train,ask_sky,cloudy in Bregenz on Friday,Bregenz,Vorarlberg,PPLA,Bregenz,False,2,on friday,,False
+train,ask_sky,can I expect a good panorama from the Untersberg today,Untersberg,,MTS,Untersberg,False,0,today,,False
+train,ask_sky,will the clouds break up in Mittersill this afternoon,Mittersill,Salzburg,PPLA3,Mittersill,False,0,this afternoon,afternoon,False
+train,ask_sky,is it sunny,,,,,,0,,,True
+train,ask_sky,how is the cloud situation at the Kitzsteinhorn tomorrow,Kitzsteinhorn,Salzburg,MT,Kitzsteinhorn,False,1,tomorrow,,False
+train,ask_sky,any sunshine in Klagenfurt on Wednesday,Klagenfurt am Wörthersee,Kärnten,PPLA,Klagenfurt,False,0,on wednesday,,False
+train,ask_sky,will the fog lift on the Gerlitzen in the morning,Gerlitzen,Kärnten,PPL,Gerlitzen,False,0,in the morning,morning,False
+train,ask_sky,is it bright or grey in Salzburg today,Salzburg,Salzburg,PPLA,Salzburg,False,0,today,,False
+train,ask_sky,clear or cloudy on the Großvenediger tomorrow,Großvenediger,Tirol,MT,Großvenediger,False,1,tomorrow,,False
+train,ask_sky,will the peaks be visible from Heiligenblut,Heiligenblut,Kärnten,PPLA3,Heiligenblut,False,0,,,True
+train,ask_sky,is there a cloud base problem at the Emberger Alm,Maria Alm am Steinernen Meer,Salzburg,PPLA3,Alm,False,0,,,True
+train,ask_sky,how good is the view from the Schöckl today,Schöckl,Steiermark,PPL,Schöckl,False,0,today,,False
+train,ask_sky,sunny spells in Seefeld tomorrow,Seefeld in Tirol,Tirol,PPLA3,Seefeld,False,1,tomorrow,,False
+train,ask_sky,is the summit of the Rax above the cloud layer,Rax,Burgenland,PPL,Rax,False,0,,,True
+train,ask_sky,Will the sky be clear enough for sunrise photos on the Dobratsch,Dobratsch,Kärnten,MT,Dobratsch,False,0,,,True
+train,ask_sky,partly cloudy in Flachau on Saturday,Flachau,Salzburg,PPLA3,Flachau,False,3,on saturday,,False
+train,ask_sky,is it hazy in Krems today,Krems an der Donau,Niederösterreich,PPLA3,Krems,False,0,today,,False
+train,ask_sky,do I need to expect low clouds at the Stoderzinken tomorrow,Stoderzinken,Steiermark,MT,Stoderzinken,False,1,tomorrow,,False
+train,ask_wind,how windy is it on the Hochkönig tomorrow,Hochkönig,Salzburg,MT,Hochkönig,False,1,tomorrow,,False
+train,ask_wind,wind speed in Zell am See today,Zell am See,Salzburg,PPLA3,Zell am See,False,0,today,,False
+train,ask_wind,are there strong gusts on the Dachstein,Hoher Dachstein,Oberösterreich,MT,Dachstein,False,0,,,True
+train,ask_wind,is it calm at the Emberger Alm this morning,Maria Alm am Steinernen Meer,Salzburg,PPLA3,Alm,False,0,this morning,morning,False
+train,ask_wind,whats the wind doing in Innsbruck,Innsbruck,Tirol,PPLA,Innsbruck,False,0,,,True
+train,ask_wind,gusts on the Großglockner on Saturday,Großglockner,Tirol,MT,Großglockner,False,3,on saturday,,False
+train,ask_wind,is it too windy to fly from the Gerlitzen today,Gerlitzen,Kärnten,PPL,Gerlitzen,False,0,today,,False
+train,ask_wind,wind forecast for Kössen tomorrow,Kössen,Tirol,PPLA3,Kössen,False,1,tomorrow,,False
+train,ask_wind,how strong is the wind in Ischgl,Ischgl,Tirol,PPLA3,Ischgl,False,0,,,True
+train,ask_wind,kilometers per hour wind in Villach right now,Villach,Kärnten,PPLA2,Villach,False,0,right now,,False
+train,ask_wind,is there any breeze in Graz this afternoon,Graz,Steiermark,PPLA,Graz,False,0,this afternoon,afternoon,False
+train,ask_wind,windspeed at the Schmittenhöhe please,Schmittenhöhe,Salzburg,MT,Schmittenhöhe,False,0,,,True
+train,ask_wind,will it be gusty on the Wildspitze on Sunday,Wildspitze,Tirol,MT,Wildspitze,False,4,on sunday,,False
+train,ask_wind,how are the thermals at the Stoderzinken tomorrow,Stoderzinken,Steiermark,MT,Stoderzinken,False,1,tomorrow,,False
+train,ask_wind,is the wind picking up in Lienz tonight,Lienz,Tirol,PPLA3,Lienz,False,0,tonight,night,False
+train,ask_wind,wind on the Schneeberg,Schneeberg,Niederösterreich,PPL,Schneeberg,False,0,,,True
+train,ask_wind,can I launch at Greifenburg tomorrow morning or is it windy,Greifenburg,Kärnten,PPLA3,Greifenburg,False,1,tomorrow morning,morning,False
+train,ask_wind,how much wind in Kitzbühel on Monday,Kitzbühel,Tirol,PPLA3,Kitzbühel,False,5,on monday,,False
+train,ask_wind,are conditions calm in Mayrhofen today,Mayrhofen,Tirol,PPLA3,Mayrhofen,False,0,today,,False
+train,ask_wind,strong winds expected in Bregenz,Bregenz,Vorarlberg,PPLA,Bregenz,False,0,,,True
+train,ask_wind,wind direction and speed at the Hochstein,Hochstein,Tirol,MT,Hochstein,False,0,,,True
+train,ask_wind,is it blowing hard on the Patscherkofel this afternoon,Patscherkofel,Tirol,PK,Patscherkofel,False,0,this afternoon,afternoon,False
+train,ask_wind,foehn wind in Innsbruck tomorrow,Innsbruck,Tirol,PPLA,Innsbruck,False,1,tomorrow,,False
+train,ask_wind,gust speeds at the Kitzsteinhorn on Thursday,Kitzsteinhorn,Salzburg,MT,Kitzsteinhorn,False,1,on thursday,,False
+train,ask_wind,windy in Salzburg,Salzburg,Salzburg,PPLA,Salzburg,False,0,,,True
+train,ask_wind,will the wind drop in the evening at the Hohe Wand,Höhe,Kärnten,PPL,Hohe,False,0,in the evening,evening,False
+train,ask_wind,how windy on the Grimming on Friday,Grimming,Steiermark,MT,Grimming,False,2,on friday,,False
+train,ask_wind,wind conditions for paragliding at the Zwölferhorn,Zwölferhorn,Salzburg,MT,Zwölferhorn,False,0,,,True
+train,ask_wind,is it a windy day in Klagenfurt,Klagenfurt am Wörthersee,Kärnten,PPLA,Klagenfurt,False,0,,,True
+train,ask_wind,wind speed on the Hochschwab tomorrow,Hochschwab,Steiermark,PK,Hochschwab,False,1,tomorrow,,False
+train,ask_wind,how fast is the wind at the Feuerkogel right now,Feuerkogel,Oberösterreich,MT,Feuerkogel,False,0,right now,,False
+train,ask_wind,gusty or calm in Obertauern this afternoon,Obertauern,Salzburg,PPL,Obertauern,False,0,this afternoon,afternoon,False
+train,ask_wind,is the wind strong in Hallstatt today,Hallstatt,Oberösterreich,PPL,Hallstatt,False,0,today,,False
+train,ask_wind,wind at the summit of the Großvenediger on Saturday,Großvenediger,Tirol,MT,Großvenediger,False,3,on saturday,,False
+train,ask_wind,how is the wind in Seefeld tomorrow,Seefeld in Tirol,Tirol,PPLA3,Seefeld,False,1,tomorrow,,False
+train,ask_wind,are there dangerous gusts at the Loser,Loser,Steiermark,PK,Loser,False,0,,,True
+train,ask_wind,is it windy enough for kiting at the Nassfeld,Sonnenalpe Nassfeld,Kärnten,PPL,Nassfeld,False,0,,,True
+train,ask_wind,wind report for Schladming please,Schladming,Steiermark,PPLA3,Schladming,False,0,,,True
+train,ask_wind,how strong are the gusts in Bad Gastein tonight,Bad Gastein,Salzburg,PPLA3,Bad Gastein,False,0,tonight,night,False
+train,ask_wind,wil it be windy on the Untersberg tomorow,Untersberg,,MTS,Untersberg,False,1,tomorow,,False
+train,ask_precipitation,will it rain in Innsbruck tomorrow,Innsbruck,Tirol,PPLA,Innsbruck,False,1,tomorrow,,False
+train,ask_precipitation,how much fresh snow on the Dachstein,Hoher Dachstein,Oberösterreich,MT,Dachstein,False,0,,,True
+train,ask_precipitation,is it raining in Graz right now,Graz,Steiermark,PPLA,Graz,False,0,right now,,False
+train,ask_precipitation,snowfall in Ischgl tonight,Ischgl,Tirol,PPLA3,Ischgl,False,0,tonight,night,False
+train,ask_precipitation,do I need a rain jacket in Salzburg today,Salzburg,Salzburg,PPLA,Salzburg,False,0,today,,False
+train,ask_precipitation,any showers expected on the Schneeberg on Sunday,Schneeberg,Niederösterreich,PPL,Schneeberg,False,4,on sunday,,False
+train,ask_precipitation,will it snow at the Kitzsteinhorn tomorrow,Kitzsteinhorn,Salzburg,MT,Kitzsteinhorn,False,1,tomorrow,,False
+train,ask_precipitation,precipitation in Villach this afternoon,Villach,Kärnten,PPLA2,Villach,False,0,this afternoon,afternoon,False
+train,ask_precipitation,how many centimeters of new snow in Obertauern,Obertauern,Salzburg,PPL,Obertauern,False,0,,,True
+train,ask_precipitation,is rain coming to Zell am See,Zell am See,Salzburg,PPLA3,Zell am See,False,0,,,True
+train,ask_precipitation,will it be wet on the Hochkönig on Saturday,Hochkönig,Salzburg,MT,Hochkönig,False,3,on saturday,,False
+train,ask_precipitation,rainig in Lienz,Lienz,Tirol,PPLA3,Lienz,False,0,,,True
+train,ask_precipitation,snow conditions overnight at Sölden,Sölden,Tirol,PPLA3,Sölden,False,0,overnight,night,False
+train,ask_precipitation,chance of rain in Klagenfurt tomorrow,Klagenfurt am Wörthersee,Kärnten,PPLA,Klagenfurt,False,1,tomorrow,,False
+train,ask_precipitation,will there be thunderstorms in Mayrhofen this afternoon,Mayrhofen,Tirol,PPLA3,Mayrhofen,False,0,this afternoon,afternoon,False
+train,ask_precipitation,how much rain in Bregenz on Monday,Bregenz,Vorarlberg,PPLA,Bregenz,False,5,on monday,,False
+train,ask_precipitation,fresh snow at the Hintertux glacier,Hintertux,Tirol,PPL,Hintertux,False,0,,,True
+train,ask_precipitation,is it going to pour in Hallstatt today,Hallstatt,Oberösterreich,PPL,Hallstatt,False,0,today,,False
+train,ask_precipitation,will it snwo in Saalbach tomorrow,Saalbach,Salzburg,PPL,Saalbach,False,1,tomorrow,,False
+train,ask_precipitation,rain forecast for Kitzbuehel,Kitzbühel,Tirol,PPLA3,Kitzbuehel,False,0,,,True
+train,ask_precipitation,any precipitation on the Wildspitze on Thursday,Wildspitze,Tirol,MT,Wildspitze,False,1,on thursday,,False
+train,ask_precipitation,will the trail be wet on the Rax tomorrow,Rax,Burgenland,PPL,Rax,False,1,tomorrow,,False
+train,ask_precipitation,snowfall amount at the Turracher Höhe tonight,Turracherhöhe,Kärnten,PPL,Turracher Höhe,False,0,tonight,night,False
+train,ask_precipitation,is drizzle expected in Krems this morning,Krems an der Donau,Niederösterreich,PPLA3,Krems,False,0,this morning,morning,False
+train,ask_precipitation,rain or snow on the Grossglockner on Friday,Großglockner,Tirol,MT,Grossglockner,False,2,on friday,,False
+train,ask_precipitation,how much snow fell on the Grimming,Grimming,Steiermark,MT,Grimming,False,0,,,True
+train,ask_precipitation,will I get soaked on the Hochschwab today,Hochschwab,Steiermark,PK,Hochschwab,False,0,today,,False
+train,ask_precipitation,showers in Seefeld tomorrow afternoon,Seefeld in Tirol,Tirol,PPLA3,Seefeld,False,1,tomorrow afternoon,afternoon,False
+train,ask_precipitation,does it rain in Bad Gastein on Wednesday,Bad Gastein,Salzburg,PPLA3,Bad Gastein,False,0,on wednesday,,False
+train,ask_precipitation,new snow in Mittersill,Mittersill,Salzburg,PPLA3,Mittersill,False,0,,,True
+train,ask_precipitation,is there sleet at the Nassfeld today,Sonnenalpe Nassfeld,Kärnten,PPL,Nassfeld,False,0,today,,False
+train,ask_precipitation,will it rain tonight,,,,,,0,tonight,night,False
+train,ask_precipitation,snow depth forecast for Flachau tomorrow,Flachau,Salzburg,PPLA3,Flachau,False,1,tomorrow,,False
+train,ask_precipitation,heavy rain warning for Schladming,Schladming,Steiermark,PPLA3,Schladming,False,0,,,True
+train,ask_precipitation,will it stay dry on the Untersberg this afternoon,Untersberg,,MTS,Untersberg,False,0,this afternoon,afternoon,False
+train,ask_precipitation,is snow expected on the Großvenediger on Saturday,Großvenediger,Tirol,MT,Großvenediger,False,3,on saturday,,False
+train,ask_precipitation,rain in Heiligenblut tomorrow morning,Heiligenblut,Kärnten,PPLA3,Heiligenblut,False,1,tomorrow morning,morning,False
+train,ask_precipitation,how wet will it be at the Gerlitzen today,Gerlitzen,Kärnten,PPL,Gerlitzen,False,0,today,,False
+train,ask_precipitation,will it snow down to the valley in Alpbach,Alpbach,Tirol,PPLA3,Alpbach,False,0,,,True
+train,ask_precipitation,any rain on Tuesday in Tamsweg,Tamsweg,Salzburg,PPLA3,Tamsweg,False,6,on tuesday,,False
+train,ask_overview,hows the weather in Innsbruck today,Innsbruck,Tirol,PPLA,Innsbruck,False,0,today,,False
+train,ask_overview,whats the weather like tomorrow,,,,,,1,tomorrow,,False
+train,ask_overview,give me the forecast for the Dachstein on Saturday,Hoher Dachstein,Oberösterreich,MT,Dachstein,False,3,on saturday,,False
+train,ask_overview,weather in Zell am See please,Zell am See,Salzburg,PPLA3,Zell am See,False,0,,,True
+train,ask_overview,how are conditions on the Großglockner tomorrow,Großglockner,Tirol,MT,Großglockner,False,1,tomorrow,,False
+train,ask_overview,whats it like in Ischgl right now,Ischgl,Tirol,PPLA3,Ischgl,False,0,right now,,False
+train,ask_overview,general weather for Lienz on Sunday,Lienz,Tirol,PPLA3,Lienz,False,4,on sunday,,False
+train,ask_overview,can you give me a weather overview for Kitzbühel,Kitzbühel,Tirol,PPLA3,Kitzbühel,False,0,,,True
+train,ask_overview,wheater in Graz tomorrow,Graz,Steiermark,PPLA,Graz,False,1,tomorrow,,False
+train,ask_overview,how is the weather up on the Schneeberg,Schneeberg,Niederösterreich,PPL,Schneeberg,False,0,,,True
+train,ask_overview,forecast for Villach this afternoon,Villach,Kärnten,PPLA2,Villach,False,0,this afternoon,afternoon,False
+train,ask_overview,whats the weather doing in Salzburg,Salzburg,Salzburg,PPLA,Salzburg,False,0,,,True
+train,ask_overview,tell me about the weather in Mayrhofen on Monday,Mayrhofen,Tirol,PPLA3,Mayrhofen,False,5,on monday,,False
+train,ask_overview,conditions on the Hochkönig for a ski tour tomorrow,Hochkönig,Salzburg,MT,Hochkönig,False,1,tomorrow,,False
+train,ask_overview,how does tomorrow look in Sölden,Sölden,Tirol,PPLA3,Sölden,False,1,tomorrow,,False
+train,ask_overview,whats the outlook for Bregenz on Friday,Bregenz,Vorarlberg,PPLA,Bregenz,False,2,on friday,,False
+train,ask_overview,weather report for Hallstatt today,Hallstatt,Oberösterreich,PPL,Hallstatt,False,0,today,,False
+train,ask_overview,how is it out there in Klagenfurt,Klagenfurt am Wörthersee,Kärnten,PPLA,Klagenfurt,False,0,,,True
+train,ask_overview,summarize the weather for the Wildspitze on Thursday,Wildspitze,Tirol,MT,Wildspitze,False,1,on thursday,,False
+train,ask_overview,whats the forcast for Seefeld,Seefeld in Tirol,Tirol,PPLA3,Seefeld,False,0,,,True
+train,ask_overview,is the weather good for hiking on the Rax tomorrow,Rax,Burgenland,PPL,Rax,False,1,tomorrow,,False
+train,ask_overview,overall conditions at the Kitzsteinhorn today,Kitzsteinhorn,Salzburg,MT,Kitzsteinhorn,False,0,today,,False
+train,ask_overview,how will the weather be in Bad Gastein this weekend,Bad Gastein,Salzburg,PPLA3,Bad Gastein,False,3,this weekend,,False
+train,ask_overview,weather for Schladming on Wednesday,Schladming,Steiermark,PPLA3,Schladming,False,0,on wednesday,,False
+train,ask_overview,whats up with the weather in Obertauern,Obertauern,Salzburg,PPL,Obertauern,False,0,,,True
+train,ask_overview,how is the weather on the Grimming right now,Grimming,Steiermark,MT,Grimming,False,0,right now,,False
+train,ask_overview,give me the full picture for Saalbach tomorrow,Saalbach,Salzburg,PPL,Saalbach,False,1,tomorrow,,False
+train,ask_overview,weather situation in Krems today,Krems an der Donau,Niederösterreich,PPLA3,Krems,False,0,today,,False
+train,ask_overview,is the weather okay for a tour on the Hochschwab on Saturday,Hochschwab,Steiermark,PK,Hochschwab,False,3,on saturday,,False
+train,ask_overview,how is it looking in Mittersill tomorrow morning,Mittersill,Salzburg,PPLA3,Mittersill,False,1,tomorrow morning,morning,False
+train,ask_overview,whats the weather in Flachau tonight,Flachau,Salzburg,PPLA3,Flachau,False,0,tonight,night,False
+train,ask_overview,forecast please,,,,,,0,,,True
+train,ask_overview,weather on the Großvenediger on Sunday,Großvenediger,Tirol,MT,Großvenediger,False,4,on sunday,,False
+train,ask_overview,how is everything looking at the Nassfeld today,Sonnenalpe Nassfeld,Kärnten,PPL,Nassfeld,False,0,today,,False
+train,ask_overview,tell me the weather for Heiligenblut tomorrow,Heiligenblut,Kärnten,PPLA3,Heiligenblut,False,1,tomorrow,,False
+train,ask_overview,whats the general situation on the Untersberg this afternoon,Untersberg,,MTS,Untersberg,False,0,this afternoon,afternoon,False
+train,ask_overview,how is the weather in Alpbach on Tuesday,Alpbach,Tirol,PPLA3,Alpbach,False,6,on tuesday,,False
+train,ask_overview,daily forecast for the Gerlitzen,Gerlitzen,Kärnten,PPL,Gerlitzen,False,0,,,True
+train,ask_overview,hows it looking for Tamsweg tomorrow,Tamsweg,Salzburg,PPLA3,Tamsweg,False,1,tomorrow,,False
+train,ask_overview,weather update for Bregenz,Bregenz,Vorarlberg,PPLA,Bregenz,False,0,,,True
+train,greet,hi,,,,,,0,,,True
+train,greet,hello,,,,,,0,,,True
+train,greet,hey there,,,,,,0,,,True
+train,greet,good morning,,,,,,0,,,True
+train,greet,good evening,,,,,,0,,,True
+train,greet,hi there,,,,,,0,,,True
+train,greet,hello PeakCast,,,,,,0,,,True
+train,greet,hey,,,,,,0,,,True
+train,greet,good afternoon,,,,,,0,,,True
+train,greet,greetings,,,,,,0,,,True
+train,greet,morning,,,,,,0,,,True
+train,greet,hello are you there,,,,,,0,,,True
+train,greet,hi can you help me,,,,,,0,,,True
+train,greet,hey whats up,,,,,,0,,,True
+train,greet,good day,,,,,,0,,,True
+train,greet,hello again,,,,,,0,,,True
+train,greet,hi PeakCast I need some help,,,,,,0,,,True
+train,greet,yo,,,,,,0,,,True
+train,greet,hallo,,,,,,0,,,True
+train,greet,hey bot,,,,,,0,,,True
+train,greet,good morning PeakCast,,,,,,0,,,True
+train,greet,hi how are you,,,,,,0,,,True
+train,greet,hello there,,,,,,0,,,True
+train,greet,hey good to see you,,,,,,0,,,True
+train,greet,hi im new here,,,,,,0,,,True
+train,greet,hello can we start,,,,,,0,,,True
+train,greet,heya,,,,,,0,,,True
+train,greet,hi quick question,,,,,,0,,,True
+train,greet,good evening PeakCast,,,,,,0,,,True
+train,greet,hey I have a question,,,,,,0,,,True
+train,greet,hi again,,,,,,0,,,True
+train,greet,helo,,,,,,0,,,True
+train,greet,hello nice to meet you,,,,,,0,,,True
+train,greet,hi all,,,,,,0,,,True
+train,greet,hey hello,,,,,,0,,,True
+train,greet,hi there PeakCast,,,,,,0,,,True
+train,greet,good morning everyone,,,,,,0,,,True
+train,greet,hi hope you can help,,,,,,0,,,True
+train,greet,hello I would like to ask something,,,,,,0,,,True
+train,greet,hey morning,,,,,,0,,,True
+train,goodbye,bye,,,,,,0,,,True
+train,goodbye,goodbye,,,,,,0,,,True
+train,goodbye,see you,,,,,,0,,,True
+train,goodbye,thanks,,,,,,0,,,True
+train,goodbye,thank you,,,,,,0,,,True
+train,goodbye,thanks a lot,,,,,,0,,,True
+train,goodbye,bye bye,,,,,,0,,,True
+train,goodbye,see you later,,,,,,0,,,True
+train,goodbye,thanks that helps,,,,,,0,,,True
+train,goodbye,thank you very much,,,,,,0,,,True
+train,goodbye,ok thanks,,,,,,0,,,True
+train,goodbye,cheers,,,,,,0,,,True
+train,goodbye,thanks bye,,,,,,0,,,True
+train,goodbye,have a nice day,,,,,,0,,,True
+train,goodbye,good night,,,,,,0,,,True
+train,goodbye,thats all thanks,,,,,,0,,,True
+train,goodbye,perfect thank you,,,,,,0,,,True
+train,goodbye,thx,,,,,,0,,,True
+train,goodbye,great thanks,,,,,,0,,,True
+train,goodbye,see ya,,,,,,0,,,True
+train,goodbye,bye for now,,,,,,0,now,,False
+train,goodbye,thank you PeakCast,,,,,,0,,,True
+train,goodbye,im done thanks,,,,,,0,,,True
+train,goodbye,that was helpful thanks,,,,,,0,,,True
+train,goodbye,alright bye,,,,,,0,,,True
+train,goodbye,many thanks,,,,,,0,,,True
+train,goodbye,ciao,,,,,,0,,,True
+train,goodbye,thanks for the info,,,,,,0,,,True
+train,goodbye,ok bye,,,,,,0,,,True
+train,goodbye,appreciate it,,,,,,0,,,True
+train,goodbye,thank you so much,,,,,,0,,,True
+train,goodbye,nice one thanks,,,,,,0,,,True
+train,goodbye,talk to you later,,,,,,0,,,True
+train,goodbye,thanks again,,,,,,0,,,True
+train,goodbye,goodbye PeakCast,,,,,,0,,,True
+train,goodbye,thats it bye,,,,,,0,,,True
+train,goodbye,tanks,,,,,,0,,,True
+train,goodbye,super thanks,,,,,,0,,,True
+train,goodbye,enough for today bye,,,,,,0,today,,False
+train,goodbye,thanks have a good one,,,,,,0,,,True
+train,out_of_scope,whats your name,,,,,,0,,,True
+train,out_of_scope,who built you,,,,,,0,,,True
+train,out_of_scope,can you book me a hotel in Innsbruck,Innsbruck,Tirol,PPLA,Innsbruck,False,0,,,True
+train,out_of_scope,tell me a joke,,,,,,0,,,True
+train,out_of_scope,what time is it,,,,,,0,,,True
+train,out_of_scope,how old are you,,,,,,0,,,True
+train,out_of_scope,are you a robot,,,,,,0,,,True
+train,out_of_scope,play some music,,,,,,0,,,True
+train,out_of_scope,whats the capital of Austria,,,,,,0,,,True
+train,out_of_scope,can you order a pizza,,,,,,0,,,True
+train,out_of_scope,how do I get to Zell am See by train,Zell am See,Salzburg,PPLA3,Zell am See,False,0,,,True
+train,out_of_scope,what is the avalanche risk on the Dachstein,Hoher Dachstein,Oberösterreich,MT,Dachstein,False,0,,,True
+train,out_of_scope,do you like skiing,,,,,,0,,,True
+train,out_of_scope,whats 2 plus 2,,,,,,0,,,True
+train,out_of_scope,recommend a good restaurant in Salzburg,Salzburg,Salzburg,PPLA,Salzburg,False,0,,,True
+train,out_of_scope,how much does a lift ticket cost in Ischgl,Ischgl,Tirol,PPLA3,Ischgl,False,0,,,True
+train,out_of_scope,can you translate this to German,,,,,,0,,,True
+train,out_of_scope,what are you doing,,,,,,0,,,True
+train,out_of_scope,tell me about the history of Vienna,Vienna,Wien,PPLC,Vienna,False,0,,,True
+train,out_of_scope,is the cable car open on the Kitzsteinhorn,Kitzsteinhorn,Salzburg,MT,Kitzsteinhorn,False,0,,,True
+train,out_of_scope,who won the world cup,,,,,,0,,,True
+train,out_of_scope,can you call my friend,,,,,,0,,,True
+train,out_of_scope,what should I cook tonight,,,,,,0,tonight,night,False
+train,out_of_scope,how long is the hiking trail to the Grimming,Grimming,Steiermark,MT,Grimming,False,0,,,True
+train,out_of_scope,do I need crampons for the Großglockner,Großglockner,Tirol,MT,Großglockner,False,0,,,True
+train,out_of_scope,whats your favourite mountain,,,,,,0,,,True
+train,out_of_scope,send an email to my boss,,,,,,0,,,True
+train,out_of_scope,how do I tie a figure eight knot,,,,,,0,,,True
+train,out_of_scope,what does PeakCast mean,,,,,,0,,,True
+train,out_of_scope,can you help me with my homework,,,,,,0,,,True
+train,out_of_scope,is there a hut open near the Hochschwab,Hochschwab,Steiermark,PK,Hochschwab,False,0,,,True
+train,out_of_scope,whats the news today,,,,,,0,today,,False
+train,out_of_scope,convert 10 kilometers to miles,,,,,,0,,,True
+train,out_of_scope,do you have feelings,,,,,,0,,,True
+train,out_of_scope,book a flight to Vienna,Vienna,Wien,PPLC,Vienna,False,0,,,True
+train,out_of_scope,what is the elevation of the Wildspitze,Wildspitze,Tirol,MT,Wildspitze,False,0,,,True
+train,out_of_scope,i love hiking,,,,,,0,,,True
+train,out_of_scope,can you speak German,,,,,,0,,,True
+train,out_of_scope,set an alarm for 6 am,,,,,,0,,,True
+train,out_of_scope,whats the avalanche bulletin for Tirol,Tyrol,,RGN,Tirol,False,0,,,True
+test,ask_temperature,how many degrees are we expecting in Gmunden on Thursday,Gmunden,Oberösterreich,PPL,Gmunden,False,1,on thursday,,False
+test,ask_temperature,is it mild up at the Krippenstein,Hoher Krippenstein,Oberösterreich,MT,Krippenstein,True,0,,,True
+test,ask_temperature,whats the thermometer saying in Dornbirn,Dornbirn,Vorarlberg,PPLA3,Dornbirn,False,0,,,True
+test,ask_temperature,will it drop below freezing in Kals am Großglockner tonight,Kals am Großglockner,Tirol,PPLA3,Kals am Großglockner,False,0,tonight,night,False
+test,ask_temperature,tell me the temperature at the Hahnenkamm tomorrow,Hahnenkamm,Tirol,MT,Hahnenkamm,False,1,tomorrow,,False
+test,ask_temperature,is it hot in Eisenstadt today,Eisenstadt,Burgenland,PPLA,Eisenstadt,False,0,today,,False
+test,ask_temperature,how cold does it get up on the Ankogel,Ankogel,Kärnten,MT,Ankogel,False,0,,,True
+test,ask_temperature,expected highs and lows in Spittal an der Drau on Sunday,Spittal an der Drau,Kärnten,PPLA3,Spittal an der Drau,False,4,on sunday,,False
+test,ask_temperature,how warm is the Stuhleck this morning,Stuhleck,Steiermark,MT,Stuhleck,False,0,this morning,morning,False
+test,ask_temperature,whats the air temperature on the Hochgolling right now,Hochgolling,Salzburg,MT,Hochgolling,False,0,right now,,False
+test,ask_sky,will the sun break through in Admont tomorrow,Admont,Steiermark,PPLA3,Admont,False,1,tomorrow,,False
+test,ask_sky,is the Krippenstein above the inversion today,Hoher Krippenstein,Oberösterreich,MT,Krippenstein,True,0,today,,False
+test,ask_sky,how many clouds over Feldkirch on Saturday,Feldkirch,Vorarlberg,PPLA2,Feldkirch,False,3,on saturday,,False
+test,ask_sky,can I see the Großglockner from Heiligenblut tomorrow,Großglockner,Tirol,MT,Großglockner,False,1,tomorrow,,False
+test,ask_sky,is it grey all day in Wiener Neustadt,Wiener Neustadt,Niederösterreich,PPLA3,Wiener Neustadt,False,0,,,True
+test,ask_sky,whats the cloud base at the Bischling this morning,Bischlinghöhe,Salzburg,MT,Bischling,True,0,this morning,morning,False
+test,ask_sky,do we get clear conditions on the Mittagskogel tonight,Kepa,,MT,Mittagskogel,False,0,tonight,night,False
+test,ask_sky,sunshine or shade in Gosau tomorrow afternoon,Gosau,Oberösterreich,PPL,Gosau,False,1,tomorrow afternoon,afternoon,False
+test,ask_sky,is the view from the Gaisberg any good today,Gaisberg,Oberösterreich,PPL,Gaisberg,False,0,today,,False
+test,ask_sky,will it be sunnyy at the Katschberg on Friday,Rennweg am Katschberg,Kärnten,PPLA3,Katschberg,False,2,on friday,,False
+test,ask_wind,any dangerous gusts up at the Venet tomorrow,Venetberg,Tirol,MT,Venet,False,1,tomorrow,,False
+test,ask_wind,how brisk is it at the Hohe Munde today,Hohe Munde,Tirol,MT,Hohe Munde,False,0,today,,False
+test,ask_wind,wind strength at the Bischling this afternoon,Bischlinghöhe,Salzburg,MT,Bischling,True,0,this afternoon,afternoon,False
+test,ask_wind,is there a lot of air movement on the Ötscher,Ötscher,Niederösterreich,MT,Ötscher,False,0,,,True
+test,ask_wind,how many km h of wind at the Riesneralm on Sunday,Griesneralm,Tirol,HUT,Riesneralm,True,4,on sunday,,False
+test,ask_wind,tell me about gust activity at the Sonnwendjoch,Hinteres Sonnwendjoch,Tirol,MT,Sonnwendjoch,True,0,,,True
+test,ask_wind,is the breeze strong in Gaschurn today,Gaschurn,Vorarlberg,PPLA3,Gaschurn,False,0,today,,False
+test,ask_wind,will there be a foehn storm in the Inn valley tomorrow,Inntal,Tirol,VAL,Inn valley,False,1,tomorrow,,False
+test,ask_wind,how turbulent is it at the Elfer this morning,,,,,,0,this morning,morning,False
+test,ask_wind,whats the wind like at the Penken on Monday,Penken,Kärnten,PPL,Penken,False,5,on monday,,False
+test,ask_precipitation,are we expecting any downpours in Melk tomorrow,Melk,Niederösterreich,PPLA3,Melk,False,1,tomorrow,,False
+test,ask_precipitation,how deep will the new snow be at the Mölltaler Gletscher,Wurtenkees,Kärnten,GLCR,Mölltaler Gletscher,False,0,,,True
+test,ask_precipitation,is it drizzling in Puchberg am Schneeberg right now,Puchberg am Schneeberg,Niederösterreich,PPLA3,Puchberg am Schneeberg,False,0,right now,,False
+test,ask_precipitation,do I need an umbrella in Gmunden today,Gmunden,Oberösterreich,PPL,Gmunden,False,0,today,,False
+test,ask_precipitation,will the snow line drop below 1500 meters in the Montafon,Sankt Anton im Montafon,Vorarlberg,PPLA3,Montafon,False,0,,,True
+test,ask_precipitation,hail expected in Bad Hofgastein this afternoon,Bad Hofgastein,Salzburg,PPLA3,Bad Hofgastein,False,0,this afternoon,afternoon,False
+test,ask_precipitation,amount of rainfall in Lech am Arlberg on Saturday,Lech,Vorarlberg,PPLA3,Lech am Arlberg,False,3,on saturday,,False
+test,ask_precipitation,is there powder at the Axamer Lizum tomorrow,Axamer Lizum,Tirol,PPL,Axamer Lizum,False,1,tomorrow,,False
+test,ask_precipitation,will it be raining when I start in Ramsau am Dachstein on Sunday,Ramsau am Dachstein,Steiermark,PPL,Ramsau am Dachstein,False,4,on sunday,,False
+test,ask_precipitation,chance of snow showers at the Kühtai tonight,Kühtai,Tirol,PPL,Kühtai,False,0,tonight,night,False
+test,ask_overview,what kind of day is it in Hermagor,Hermagor,Kärnten,PPLA2,Hermagor,False,0,,,True
+test,ask_overview,break down the weather at the Stoderzinken for me tomorrow,Stoderzinken,Steiermark,MT,Stoderzinken,False,1,tomorrow,,False
+test,ask_overview,is it a nice day in Dornbirn today,Dornbirn,Vorarlberg,PPLA3,Dornbirn,False,0,today,,False
+test,ask_overview,whats the big picture for the Hochkar on Saturday,Hochkar,Niederösterreich,PPL,Hochkar,False,3,on saturday,,False
+test,ask_overview,how does the weather shape up in Wagrain tomorrow,Wagrain,Oberösterreich,PPL,Wagrain,False,1,tomorrow,,False
+test,ask_overview,anything I should know about the weather on the Ötscher,Ötscher,Niederösterreich,MT,Ötscher,False,0,,,True
+test,ask_overview,whether in Serfaus on Sunday,Serfaus,Tirol,PPLA3,Serfaus,False,4,on sunday,,False
+test,ask_overview,hoow is the weather in Mariazell,Mariazell,Steiermark,PPLA3,Mariazell,False,0,,,True
+test,ask_overview,whats going on weather wise at the Zauchensee tomorrow,Zauchensee,Salzburg,PPLL,Zauchensee,False,1,tomorrow,,False
+test,ask_overview,quick weather summary for Annaberg please,Annaberg im Lammertal,Salzburg,PPL,Annaberg,False,0,,,True
+test,greet,oh hi there,,,,,,0,,,True
+test,greet,gday,,,,,,0,,,True
+test,greet,good morning to you,,,,,,0,,,True
+test,greet,hey are you online,,,,,,0,,,True
+test,greet,hello I hope you can assist me,,,,,,0,,,True
+test,greet,hiya,,,,,,0,,,True
+test,greet,hey PeakCast you there,,,,,,0,,,True
+test,greet,good to see you,,,,,,0,,,True
+test,greet,hello friend,,,,,,0,,,True
+test,greet,hi gooed morning,,,,,,0,,,True
+test,goodbye,alright that will be all,,,,,,0,,,True
+test,goodbye,cheers mate,,,,,,0,,,True
+test,goodbye,thanks for your help goodbye,,,,,,0,,,True
+test,goodbye,gotta go now,,,,,,0,now,,False
+test,goodbye,much appreciated,,,,,,0,,,True
+test,goodbye,ok im off,,,,,,0,,,True
+test,goodbye,thanks a bunch,,,,,,0,,,True
+test,goodbye,have a good evening,,,,,,0,,,True
+test,goodbye,that answers it thank you,,,,,,0,,,True
+test,goodbye,bye then see you soon,,,,,,0,,,True
+test,out_of_scope,what is your favourite food,,,,,,0,,,True
+test,out_of_scope,how many people live in Linz,Linz,Oberösterreich,PPLA,Linz,False,0,,,True
+test,out_of_scope,can you reserve a table for two,,,,,,0,,,True
+test,out_of_scope,whats the avalanche danger level in Vorarlberg,,,,,,0,,,True
+test,out_of_scope,tell me the score of the match,,,,,,0,,,True
+test,out_of_scope,how do I fix my car,,,,,,0,,,True
+test,out_of_scope,are the lifts running at the Turracher Höhe,Turracherhöhe,Kärnten,PPL,Turracher Höhe,False,0,,,True
+test,out_of_scope,what language do they speak in Carinthia,,,,,,0,,,True
+test,out_of_scope,remind me to call my mum,,,,,,0,,,True
+test,out_of_scope,how high is the Dachstein,Hoher Dachstein,Oberösterreich,MT,Dachstein,False,0,,,True

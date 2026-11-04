@@ -12,10 +12,12 @@ presentation slides and the final "making of" report.
 
 - **Python 3.12.10** chosen as the target interpreter. The machine only had Python
   3.14.3 installed, which is outside the 3.10–3.12 range of the concept. Decided to
-  install 3.12 via `winget` rather than use 3.14, because the planned comparison
-  against sentence embeddings needs `torch`, which is the dependency most likely to
+  install 3.12 via `winget` rather than use 3.14, because an optional later comparison
+  against sentence embeddings would need `torch`, which is the dependency most likely to
   lack wheels for a very new Python version. Avoiding that blocker now was cheaper
-  than hitting it later.
+  than hitting it later. (Correction made in step 5: that comparison is **not** part of
+  the submitted concept — see the step 5 scope correction. Staying on 3.12 is still the
+  right call, because it is the range the concept names.)
 - **Exact version pins** (`==`) in `requirements.txt` instead of minimum versions.
   The portfolio exam requires that the tutor can rebuild the project from the
   submitted files alone, so the environment has to be deterministic.
@@ -407,5 +409,292 @@ How iteration 1 handled those 15:
   training sentences in those styles would help more than more hyper-parameter search.
 - `out_of_scope` remains the weakest intent (F1 0.70) and the mountain-infrastructure
   case `"are the lifts running at the Turracher Höhe"` still leaks to `ask_wind`.
-- The concept's planned comparison against **sentence embeddings** is the natural
-  iteration 2.
+- A comparison against **sentence embeddings** would be a possible iteration 2.
+  (Corrected in step 5: this is **optional**, not a deliverable — see the step 5
+  scope correction.)
+
+---
+
+## Step 5 — Safety guard, place list, and slot extraction (2026-11-04)
+
+### Two scope corrections made at the start of this step
+
+- **Sentence embeddings are not a deliverable.** Earlier entries called the
+  comparison against sentence embeddings "planned" and "the natural iteration 2".
+  That was wrong: it is **not** part of the concept actually submitted
+  (`docs/PeakCast Wheater Chatbot - Concept.pdf` is the submitted version). It is
+  **optional** and will only be done if time remains after the bot works end to
+  end. The two affected entries (steps 1 and 4) were corrected in place rather
+  than silently edited, so the change of plan stays visible.
+- **New training data must not be modelled on test-set errors.** The step 4 open
+  points suggested adding training sentences in the styles the model got wrong
+  (`"what kind of day is it in Hermagor"`, `"is it a nice day in Dornbirn today"`).
+  Doing that would be **test-set leakage**: the test set would stop being an
+  unbiased estimate and every later number would be optimistic, because the
+  training data would have been shaped by the answers. For any later data
+  iteration, new phrasings get collected from **real test conversations with the
+  running bot**, not from `reports/misclassified_*.csv`.
+
+### 5a — The avalanche safety guard
+
+`peakcast/safety_guard.py`, a plain function with no model and no state. The
+design decisions:
+
+- **Order: guard first, classifier second.** A guard running after the classifier
+  would only ever see the messages the model already mislabelled — exactly the
+  set it cannot be relied on to produce correctly.
+- **Tolerant matching, deliberately.** Substring matching on a normalised message
+  (lower-cased, accents stripped, punctuation to spaces) plus an explicit
+  misspelling list. The asymmetry justifies erring towards catching: a false
+  positive sends someone on a winter mountain to the official avalanche bulletin,
+  which is good advice anyway, while a false negative is the one failure this
+  project must not have. German compounds come free from the substring approach —
+  the stem `lawin` covers *Lawine*, *Lawinengefahr*, *Lawinenlage*,
+  *Lawinenwarnstufe* and *lawinengefährlich*.
+- **No forecast values in the referral**, not even ones the bot could legitimately
+  produce. Mixing "20 cm of fresh snow" into a safety referral would undo the
+  point of referring. There is a test asserting the referral string contains no
+  units.
+- `LWD` and `slab` are matched as **whole words** only; three-letter substrings
+  would fire inside unrelated words.
+
+**37 unit tests**, including the named case the classifier provably gets wrong.
+
+### 5b — The place list from GeoNames
+
+`scripts/build_places.py` downloads `AT.zip` (52 912 rows) and writes the compact
+`data/places_at.csv` (32 958 rows, 2.2 MB). The raw dump is git-ignored; the
+compact file is committed so the bot runs from the submitted ZIP without a
+download. GeoNames CC BY attribution added to the README.
+
+**Feature codes were chosen from the data, not from the GeoNames code list.**
+Measuring which codes are needed to cover the place names that actually occur in
+`data/intents_*.csv` gave the set: populated places (`PPL*`), terrain (`PK`, `MT`,
+`MTS`, `RGN`, `HLL`, `PASS`, `SDL`, `RDGE`, `VAL`, `CRQ`, `SLP`), water and ice
+(`GLCR`, `LK`) and mountain huts (`HUT`). Huts earn their place because a hut is
+very often *the* destination of a tour, and some well-known paragliding launch
+sites are mapped only as huts (*Emberger Alpe*).
+
+**The administrative divisions are excluded on purpose**, and this is the single
+most consequential decision of the step. `ADM2`/`ADM3` rows look attractive
+because they carry the municipality population, but:
+
+| | code | population | elevation |
+| --- | --- | --- | --- |
+| the municipality of Sölden | ADM3 | 3 145 | **2 856 m** |
+| the village of Sölden | PPLA3 | 2 205 | **1 368 m** |
+| *Politischer Bezirk* Zell am See | ADM2 | 86 923 | 761 m |
+| the town of Zell am See | PPLA3 | 7 619 | 764 m |
+
+The ADM row's coordinates and elevation describe an *area*, so a forecast fetched
+for them can sit ~1 500 m above the village the user meant — a different
+temperature, a different snow line, a different answer. And because ambiguous
+names are resolved by population, the district would have outranked the town on
+every single lookup. For a *mountain* weather bot, elevation is not a detail.
+
+#### Two bugs found by measuring instead of assuming
+
+1. **Blind truncation of the alternate-name field threw away the names that
+   matter.** The field is alphabetically sorted, so keeping "the first 6 Latin
+   names" gave Vienna → `Bec, Bech, Becs, Beç, Beč, Bienne` and discarded **"Wien"
+   at position 40**. Fixed by ranking candidates by **similarity to the primary
+   name** before applying the cap: the spelling variants a user actually types
+   (`Soelden`, `Solden`, `Sölden` all score 1.00 after normalisation) now survive
+   and the foreign exonyms are pushed down. Similarity cannot rescue "Wien"
+   itself (it scores 0.60 against "Vienna", below several Slavic
+   transliterations, and the country file carries no language codes), so the few
+   such cases are listed explicitly in `EXTRA_NAME_ALIASES` — as *extra spellings
+   for existing rows*, never as new places, so an alias can never point a
+   forecast at unverified coordinates.
+
+2. **Dropping rows without a federal state deleted some of the best-known
+   mountains in Austria.** GeoNames uses admin1 `00` for features that do not lie
+   inside one single state, and the first version dropped all 277 of them —
+   including the **Raxalpe**, the **Hohe Tauern**, the **Totes Gebirge**, the
+   **Rätikon**, the **Lechtaler Alpen** and the **Wolfgangsee**. Now kept with an
+   empty state; `Place.label` degrades to the bare name, which costs only the
+   disambiguation hint in the answer.
+
+### 5c — Place extraction
+
+`peakcast/slots.py`. Normalisation collapses case, `ß`→`ss`, umlauts→bare vowels,
+the `ae`/`oe`/`ue` digraphs→bare vowels, and `Sankt`/`St.`→`st`. Both the
+gazetteer names and the user message go through the *same* function, so the three
+spellings a user might type (`Sölden`, `Soelden`, `Solden`) meet on one key.
+
+Matching runs in three stages, exact → partial → fuzzy:
+
+**Stage 1, longest match wins.** Not leftmost-then-longest — the difference is a
+real bug. `"forecast for Sankt Anton am Arlberg"` contains the window
+`for` + `st` (from *Sankt*), and removing its space gives `forst` — the village of
+**Forst**, which a leftmost-first scan returned without ever looking at the
+four-token `st anton am arlberg` further right. Two changes fixed it: collect all
+matching windows and take the longest, and apply the space-free fallback only
+when no token in the window is an ordinary English word.
+
+The space-free fallback itself is needed because GeoNames is inconsistent about
+compounds: the pass everyone writes *Turracher Höhe* is stored as the single word
+*Turracherhöhe*.
+
+**Stage 2, partial names — added after measuring, and it replaced work that fuzzy
+matching was doing badly.** Users shorten compound mountain names while GeoNames
+stores the long form. On the 400 intent sentences, fuzzy matching resolved
+`Bischling` → **Bichling** and `Sonnwendjoch` → **Sonnenjoch**: *different real
+places*, which is the worst kind of error because the answer looks entirely
+plausible. Word-boundary containment (with a minimum length, a coverage
+requirement, and the shortest matching name winning) gets all of them right:
+
+| typed | fuzzy matching gave | containment gives |
+| --- | --- | --- |
+| Bischling | Bichling | **Bischlinghöhe** ✓ |
+| Sonnwendjoch | Sonnenjoch | **Hinteres Sonnwendjoch** ✓ |
+| Krippenstein | *(nothing)* | **Hoher Krippenstein** ✓ |
+
+The Krippenstein row corrects something from earlier in this step: it was first
+recorded as a gazetteer gap, on the strength of an exact-match lookup. It is in
+the dump all along, as *Hoher Krippenstein*.
+
+**Stage 3, fuzzy matching** for genuine typos (`Innsbruk` → Innsbruck), kept
+conservative — a high cut-off, a minimum length, and only for tokens that already
+look like a place. A wrong place produces a plausible forecast for somewhere the
+user never asked about, which is worse than admitting the name was not recognised.
+
+#### Place names that are also English words
+
+The most dangerous failure mode of a gazetteer matcher, and not hypothetical:
+
+| name | how many places | largest |
+| --- | --- | --- |
+| **Rain** | 24 entries | a village of 1 081 |
+| **See** | 15 entries | 1 265 |
+| **Alm** | 20 entries | — |
+| **Hard** | 2 entries | a town of **13 495** |
+| **Going** | 2 entries | 358 |
+| also *Still*, *First*, *Quick*, *Not*, *Fell*, *Bad*, *Fall*, *Pack* | | |
+
+Dropping these names is not an option — Hard is a real town of 13 000 people and
+someone there will ask for its weather. They are kept but matched only **with
+evidence**: a preposition directly in front, or an initial capital in the user's
+own text.
+
+Two findings from this:
+
+- **"to" had to be removed from the preposition list.** With it,
+  `"is it going to rain in Wien"` read `to rain` as `to <place>` and answered for
+  the village of Rain in Kärnten. "going to rain" is one of the most common
+  phrasings a weather bot sees, so the trade was not close. `from`, `over` and
+  `above` were dropped for the same reason.
+- **Capitalisation is not evidence for words English always capitalises.**
+  `"can you speak German"` matched the village of **Germanns** — a prefix hit with
+  an initial capital, where the capital says nothing, because *German* is
+  capitalised in every sentence it ever appears in. Languages, nationalities and
+  month names were added to the ambiguous list; weekday names were already there.
+
+Ambiguous names resolve to the **most populous** match, falling back to a
+feature-code preference and then to elevation for the same-named peaks that have
+no population to compare. The place carries name, state, lat, lon and elevation,
+so it is directly usable as a forecast query.
+
+When no place is found the extractor returns `None`. Restoring the place from
+conversation history is the **dialogue manager's** job — it owns conversation
+state, and putting that memory here would make this module untestable in
+isolation.
+
+### 5d — Day extraction
+
+Rules over a closed vocabulary, resolved in `Europe/Vienna` rather than the
+machine's local timezone — otherwise "today" silently shifts for anyone running
+the bot outside Austria, the tutor included.
+
+Covers `today`, `tonight`, `this morning/afternoon/evening`, `tomorrow` (+ parts
+of day), `the day after tomorrow`, all seven weekday names with
+`next`/`on`/`this`, `this weekend`, `in N days`, `in a week`, `right now`, and the
+typo `tomorow` that is present in the training data. Parts of day are a **flag on
+the day**, not separate days, because the weather service fetches a whole day and
+the response generator narrows the hours.
+
+Decisions worth recording:
+
+- **Default is today.** A bare *"how windy is it on the Hochkönig"* means now.
+  The slot carries an `is_default` flag so the dialogue manager can tell an
+  assumption from a statement.
+- **"this weekend" → Saturday.** A weekend spans two days and the forecast is
+  per-day, so one has to be chosen; Saturday is the first of the two and the more
+  likely tour day. The dialogue manager can offer Sunday as a follow-up.
+- **Out-of-range days are flagged, not clamped.** The horizon is today + 6 days
+  (Open-Meteo's free range). `"next Friday"` is +9 and `"in 10 days"` is +10, both
+  returned with `in_range=False`. Clamping would make the bot answer for the wrong
+  day while sounding confident; the flag lets it say it cannot forecast that far.
+- **"next Friday" is read as the Friday of the following week.** Genuinely
+  ambiguous in English, so the convention is documented in the code and pinned by
+  a test — predictable rather than correct, and it usually lands outside the
+  horizon where the bot says so anyway.
+- **Bare "morning" and "evening" are deliberately not patterns**: *"good morning"*
+  and *"have a good evening"* are greetings, and the classifier already has
+  `greet`/`goodbye` for them.
+
+### 5e — Results
+
+**112 unit tests** (`python -m pytest`), 37 for the guard and 75 for the slots.
+Every day test passes an explicit reference date; without it the suite would pass
+or fail depending on which weekday it ran on, which is exactly the flakiness that
+makes a test suite worthless as evidence.
+
+Accuracy on the hand-written `data/slots_test.csv` (52 sentences, fixed reference
+date Wednesday 2026-11-04):
+
+| Slot | Accuracy | |
+| --- | --- | --- |
+| Place | **0.981** | 51/52 |
+| Day | **1.000** | 52/52 |
+| Part of day | **1.000** | 52/52 |
+| Both slots | **0.981** | 51/52 |
+
+Of the 52 sentences, 8 name no place at all, and all 8 were correctly left empty —
+that is the ambiguous-name handling doing its job, and it is scored separately
+because getting those right means *not* matching anything.
+
+The one remaining error is a genuine gazetteer limitation, not a matcher bug:
+*"will the trail be wet on the Rax tomorrow"* → **Rax, Burgenland** (a village of
+615) instead of the **Raxalpe** massif in Niederösterreich. "Rax" is the
+colloquial short name climbers use, it is only three letters, and it is an exact
+match for a different real place — so neither the containment nor the fuzzy stage
+can help. The honest fix is a small curated alias file, which is noted below
+rather than quietly bolted on.
+
+#### Sweep over the intent datasets
+
+Running the extractor over all 400 intent sentences (`reports/slot_extraction_check.csv`)
+is a free false-positive sweep: those sentences were written for the *intent*
+classifier and never designed as slot tests, so they contain plenty of ordinary
+English for a gazetteer matcher to trip over.
+
+| | |
+| --- | --- |
+| sentences | 400 |
+| a place was found in | 258 (64.5 %) |
+| of those, non-exact matches | 7 |
+| a day word was found in | 187 (46.8 %) |
+| **places matched from a lower-case word** | **0** |
+
+The zero is the number that matters: across 400 sentences, not one ordinary
+English word was read as a place. Six of the seven non-exact matches are correct
+(Krippenstein ×3, Bischling ×2, Sonnwendjoch); the seventh, `Riesneralm` →
+*Griesneralm*, is wrong because the Riesneralm ski area is simply not in GeoNames.
+
+### Open points for the next step
+
+- **A curated alias file** for colloquial short names GeoNames does not carry:
+  "the Rax" → Raxalpe, "the Glockner" → Großglockner. Small, hand-written,
+  with a `source` column so hand-added rows stay distinguishable from GeoNames
+  rows. This is the one fix the measured errors actually ask for.
+- `Place.name` echoes the gazetteer's canonical name, which occasionally differs
+  from what the user typed (*Mölltaler Gletscher* → **Wurtenkees**). The matched
+  text is kept on the slot, so the response generator can prefer the user's
+  wording and mention the official name once.
+- `data/places_at.csv` is 2.2 MB. Acceptable for the submission, but if it needs
+  to shrink, the obvious candidates are `HLL` (1 092 hills) and `SLP` (714 named
+  ski runs), which contributed nothing to the measured accuracy.
+- The dialogue manager still owes: calling the guard **first**, remembering the
+  last place, confirming back when `Place.fuzzy` is set, and saying "I can only
+  forecast 7 days ahead" when `DaySlot.in_range` is false.

@@ -1,0 +1,53 @@
+sentence,expected_place,expected_day,expected_part
+hows the weather in Innsbruck today,Innsbruck,0,
+temperature in Lienz tomorrow,Lienz,1,
+will it rain in Graz this afternoon,Graz,0,afternoon
+how windy is it on the Hochkoenig,Hochkönig,0,
+how much snow on the Dachstein tomorrow,Hoher Dachstein,1,
+weather in Zell am See on Friday,Zell am See,2,
+is it sunny in St. Johann im Pongau,Sankt Johann im Pongau,0,
+forecast for Sankt Anton am Arlberg tonight,St Anton am Arlberg,0,night
+conditions at the Schmittenhoehe this evening,Schmittenhöhe,0,evening
+gusts on the Grossglockner the day after tomorrow,Großglockner,2,
+whats the weather in Soelden this weekend,Sölden,3,
+snow report for Kitzbuehel on Saturday,Kitzbühel,3,
+how cold on the Wildspitze right now,Wildspitze,0,
+wind at the Kitzsteinhorn in 3 days,Kitzsteinhorn,3,
+is it foggy in Villach this morning,Villach,0,morning
+temperature in Bad Gastein on Monday,Bad Gastein,5,
+how windy on the Turracher Hoehe tomorrow,Turracherhöhe,1,
+weather at the Wolfgangsee on Sunday,Wolfgangsee,4,
+snow in the Hohe Tauern tomorrow,Hohe Tauern,1,
+is it clear on the Stoderzinken tonight,Stoderzinken,0,night
+thermals at the Gerlitzen this afternoon,Gerlitzen,0,afternoon
+how high is the cloud base on the Grimming,Grimming,0,
+weather in zell am see tomorrow,Zell am See,1,
+WEATHER IN INNSBRUCK TONIGHT,Innsbruck,0,night
+temperature in dornbirn today,Dornbirn,0,
+hows it looking in Hermagor on Thursday,Hermagor,1,
+is it raining in Gmunden right now,Gmunden,0,
+whats the forecast for Mariazell in 2 days,Mariazell,2,
+temperature in Innsbruk tomorrow,Innsbruck,1,
+weather in Salzburgg today,Salzburg,0,
+is it snowing in Soldenn tonight,Sölden,0,night
+forecast for Dornbrin tomorrow,Dornbirn,1,
+is it going to rain in Wien,Vienna,0,
+will it rain tomorrow,,1,
+is it hard to hike up there today,,0,
+I want to see the summit tomorrow,,1,
+whats the weather in Hard this afternoon,Hard,0,afternoon
+how cold in Going tonight,Going,0,night
+forecast for Rain on Friday,Rain,2,
+do I need a rain jacket in Salzburg today,Salzburg,0,
+is it still windy on the Hochschwab,Hochschwab,0,
+hows the weather,,0,
+temperature please,,0,
+is it windy up there tomorrow,,1,
+what about next Friday,,9,
+can you forecast in 10 days,,10,
+weather in Lienz in a week,Lienz,7,
+hows the weather in Graz on Wednesday,Graz,0,
+will it be sunny in Ischgl in the morning,Ischgl,0,morning
+snow at the Planneralm the day after tomorrow,Planneralm,2,
+will the trail be wet on the Rax tomorrow,Raxalpe,1,
+will I see the stars from the Krippenstein tonight,Hoher Krippenstein,0,night

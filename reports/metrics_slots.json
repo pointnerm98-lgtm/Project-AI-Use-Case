@@ -1,0 +1,21 @@
+{
+  "n_sentences": 52,
+  "place_accuracy": 0.9808,
+  "day_accuracy": 1.0,
+  "part_of_day_accuracy": 1.0,
+  "both_slots_accuracy": 0.9808,
+  "place_correct": 51,
+  "day_correct": 52,
+  "n_sentences_without_a_place": 8,
+  "correctly_found_no_place": 8,
+  "reference_date": "2026-11-04",
+  "place_errors": [
+    {
+      "sentence": "will the trail be wet on the Rax tomorrow",
+      "expected": "Raxalpe",
+      "found": "Rax",
+      "fuzzy": "False"
+    }
+  ],
+  "day_errors": []
+}
