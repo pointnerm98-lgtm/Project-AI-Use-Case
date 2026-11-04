@@ -18,10 +18,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from peakcast.safety_guard import (
     AVALANCHE_REFERRAL,
+    TYROL_REFERRAL_SUFFIX,
     check_message,
     mentions_avalanche,
     normalise,
+    referral_for,
 )
+from peakcast.slots import find_place
 
 # --- The case the classifier gets wrong ------------------------------------
 # Measured in step 4: the iteration-1 model labels this ask_precipitation with
@@ -35,13 +38,68 @@ def test_the_sentence_the_classifier_answers_wrongly_is_caught() -> None:
     assert check_message(CLASSIFIER_FAILURE_CASE) == AVALANCHE_REFERRAL
 
 
-def test_referral_contains_no_forecast_and_names_the_official_service() -> None:
-    """The referral must point at the official service and promise no values."""
-    assert "avalanche.report" in AVALANCHE_REFERRAL
-    assert "Lawinenwarndienst" in AVALANCHE_REFERRAL
-    # A safety referral that also reports snow depth would undo its own point.
-    for number_word in ("cm", "km/h", "degrees", "°C"):
-        assert number_word not in AVALANCHE_REFERRAL
+def test_referral_names_the_nationwide_portal() -> None:
+    """The default referral must point at the all-Austria portal.
+
+    lawinen.at is the joint portal of the state avalanche warning services and
+    covers every federal state. avalanche.report covers only Tyrol, South Tyrol
+    and Trentino, so it must NOT appear in the default referral - naming it
+    would send someone in Styria or Carinthia to a bulletin that does not cover
+    their mountain.
+    """
+    assert "lawinen.at" in AVALANCHE_REFERRAL
+    assert "avalanche.report" not in AVALANCHE_REFERRAL
+
+
+def test_referral_contains_no_forecast_values() -> None:
+    """A safety referral that also reports snow depth would undo its own point."""
+    for unit in ("cm", "km/h", "degrees", "°C"):
+        assert unit not in AVALANCHE_REFERRAL
+        assert unit not in TYROL_REFERRAL_SUFFIX
+
+
+def test_tyrol_gets_the_euregio_bulletin_as_well() -> None:
+    """In Tyrol, avalanche.report genuinely applies and is added."""
+    referral = referral_for("Tirol")
+    assert "lawinen.at" in referral
+    assert "avalanche.report" in referral
+
+
+@pytest.mark.parametrize("state", ["Steiermark", "Kärnten", "Salzburg", "", None])
+def test_other_states_do_not_get_the_tyrol_bulletin(state: str | None) -> None:
+    """Outside Tyrol the Euregio bulletin must not be offered."""
+    referral = referral_for(state)
+    assert "lawinen.at" in referral
+    assert "avalanche.report" not in referral
+
+
+def test_referral_is_refined_by_the_extracted_place() -> None:
+    """End to end: a Tyrolean place in the message adds the Tyrol bulletin.
+
+    Uses the real slot extractor rather than a hand-written state string, so
+    the test also pins the contract between the two modules - the guard reads
+    the state exactly as `Place.state` spells it.
+    """
+    tyrolean = find_place("what is the avalanche risk on the Wildspitze")
+    assert tyrolean is not None and tyrolean.state == "Tirol"
+    assert "avalanche.report" in check_message(
+        "what is the avalanche risk on the Wildspitze", tyrolean.state
+    )
+
+    styrian = find_place("avalanche danger on the Hochschwab")
+    assert styrian is not None and styrian.state == "Steiermark"
+    assert "avalanche.report" not in check_message(
+        "avalanche danger on the Hochschwab", styrian.state
+    )
+
+
+def test_guard_works_without_a_place() -> None:
+    """The guard must never depend on place extraction succeeding.
+
+    A bare "avalanche risk?" has no place in it, and the user must still get
+    the correct nationwide portal.
+    """
+    assert check_message("avalanche risk?") == AVALANCHE_REFERRAL
 
 
 @pytest.mark.parametrize(

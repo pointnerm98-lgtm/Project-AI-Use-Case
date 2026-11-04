@@ -143,7 +143,18 @@ def sweep_intent_data() -> tuple[list[dict[str, str]], dict[str, int]]:
         A tuple ``(rows, summary)`` for the check CSV and the console.
     """
     rows: list[dict[str, str]] = []
-    summary = {"sentences": 0, "with_place": 0, "fuzzy": 0, "with_day_word": 0}
+    summary = {
+        "sentences": 0,
+        "with_place": 0,
+        "fuzzy": 0,
+        "with_day_word": 0,
+        # The false-positive indicator: a place matched without a single
+        # capitalised word in the matched text is very likely an ordinary
+        # English phrase that was read as a location. Articles are ignored,
+        # which matters because the curated alias "the Rax" legitimately
+        # matches a lower-case "the" followed by a capitalised "Rax".
+        "place_from_all_lowercase": 0,
+    }
 
     for source, csv_path in (("train", TRAIN_CSV), ("test", TEST_CSV)):
         with csv_path.open(encoding="utf-8", newline="") as handle:
@@ -155,6 +166,11 @@ def sweep_intent_data() -> tuple[list[dict[str, str]], dict[str, int]]:
                     summary["with_place"] += 1
                     if slots.place.fuzzy:
                         summary["fuzzy"] += 1
+                    if not any(
+                        word[:1].isupper()
+                        for word in slots.place.matched_text.split()
+                    ):
+                        summary["place_from_all_lowercase"] += 1
                 if not slots.day.is_default:
                     summary["with_day_word"] += 1
 
@@ -243,6 +259,10 @@ def main() -> None:
     print(f"    of those, fuzzy matches {summary['fuzzy']:>6}")
     print(f"  a day word was found in   {summary['with_day_word']:>6}"
           f"   ({summary['with_day_word'] / summary['sentences']:.1%})")
+    print()
+    print("  false-positive indicator:")
+    print(f"    places matched with no capitalised word at all"
+          f"   {summary['place_from_all_lowercase']:>4}")
     print(f"  written to {CHECK_CSV}")
 
 

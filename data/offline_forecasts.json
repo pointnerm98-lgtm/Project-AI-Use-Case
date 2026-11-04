@@ -1,0 +1,976 @@
+{
+  "_README": [
+    "FICTIONAL demo data for PeakCast. These numbers are invented and must",
+    "never be presented as a real forecast: every WeatherReport built from",
+    "this file carries source='offline' so the response generator can say so.",
+    "Stored by DAY OFFSET (0 = today, 6 = six days ahead), never by date, so",
+    "the demo does not go stale."
+  ],
+  "_story": [
+    "day 0  settled high pressure, inversion fog in the valleys, clear summits",
+    "day 1  still fine, a little warmer, more sun",
+    "day 2  high cloud ahead of a front, wind picking up",
+    "day 3  the front crosses: rain in the valleys, snow above ~1600 m, strong gusts",
+    "day 4  trailing showers in colder air, still windy",
+    "day 5  clearing from the west, cold and bright",
+    "day 6  settled again, cold mornings"
+  ],
+  "_units": {
+    "temperature": "degrees Celsius",
+    "wind_speed_10m_max": "km/h",
+    "wind_gusts_10m_max": "km/h",
+    "rain_sum": "mm",
+    "snowfall_sum": "cm",
+    "cloud_cover_mean": "percent",
+    "weather_code": "WMO code"
+  },
+  "places": {
+    "Innsbruck": {
+      "state": "Tirol",
+      "elevation": 570,
+      "days": [
+        {
+          "temperature_2m_max": 9.3,
+          "temperature_2m_min": 2.3,
+          "weather_code": 45,
+          "cloud_cover_mean": 85,
+          "wind_speed_10m_max": 8.7,
+          "wind_gusts_10m_max": 19.6,
+          "rain_sum": 0.0,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 0
+        },
+        {
+          "temperature_2m_max": 11.3,
+          "temperature_2m_min": 4.3,
+          "weather_code": 1,
+          "cloud_cover_mean": 20,
+          "wind_speed_10m_max": 10.9,
+          "wind_gusts_10m_max": 24.0,
+          "rain_sum": 0.0,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 5
+        },
+        {
+          "temperature_2m_max": 10.3,
+          "temperature_2m_min": 3.3,
+          "weather_code": 3,
+          "cloud_cover_mean": 70,
+          "wind_speed_10m_max": 24.0,
+          "wind_gusts_10m_max": 49.1,
+          "rain_sum": 0.2,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 25
+        },
+        {
+          "temperature_2m_max": 5.3,
+          "temperature_2m_min": -1.7,
+          "weather_code": 61,
+          "cloud_cover_mean": 95,
+          "wind_speed_10m_max": 41.4,
+          "wind_gusts_10m_max": 85.0,
+          "rain_sum": 9.4,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 90
+        },
+        {
+          "temperature_2m_max": 3.3,
+          "temperature_2m_min": -3.7,
+          "weather_code": 80,
+          "cloud_cover_mean": 80,
+          "wind_speed_10m_max": 32.7,
+          "wind_gusts_10m_max": 67.6,
+          "rain_sum": 2.6,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 60
+        },
+        {
+          "temperature_2m_max": 4.3,
+          "temperature_2m_min": -2.7,
+          "weather_code": 1,
+          "cloud_cover_mean": 25,
+          "wind_speed_10m_max": 17.4,
+          "wind_gusts_10m_max": 37.1,
+          "rain_sum": 0.0,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 10
+        },
+        {
+          "temperature_2m_max": 5.3,
+          "temperature_2m_min": -1.7,
+          "weather_code": 0,
+          "cloud_cover_mean": 10,
+          "wind_speed_10m_max": 9.8,
+          "wind_gusts_10m_max": 21.8,
+          "rain_sum": 0.0,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 0
+        }
+      ]
+    },
+    "Salzburg": {
+      "state": "Salzburg",
+      "elevation": 424,
+      "days": [
+        {
+          "temperature_2m_max": 10.2,
+          "temperature_2m_min": 3.2,
+          "weather_code": 45,
+          "cloud_cover_mean": 85,
+          "wind_speed_10m_max": 8.5,
+          "wind_gusts_10m_max": 19.2,
+          "rain_sum": 0.0,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 0
+        },
+        {
+          "temperature_2m_max": 12.2,
+          "temperature_2m_min": 5.2,
+          "weather_code": 1,
+          "cloud_cover_mean": 20,
+          "wind_speed_10m_max": 10.7,
+          "wind_gusts_10m_max": 23.5,
+          "rain_sum": 0.0,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 5
+        },
+        {
+          "temperature_2m_max": 11.2,
+          "temperature_2m_min": 4.2,
+          "weather_code": 3,
+          "cloud_cover_mean": 70,
+          "wind_speed_10m_max": 23.5,
+          "wind_gusts_10m_max": 48.0,
+          "rain_sum": 0.2,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 25
+        },
+        {
+          "temperature_2m_max": 6.2,
+          "temperature_2m_min": -0.8,
+          "weather_code": 61,
+          "cloud_cover_mean": 95,
+          "wind_speed_10m_max": 40.5,
+          "wind_gusts_10m_max": 83.2,
+          "rain_sum": 9.4,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 90
+        },
+        {
+          "temperature_2m_max": 4.2,
+          "temperature_2m_min": -2.8,
+          "weather_code": 80,
+          "cloud_cover_mean": 80,
+          "wind_speed_10m_max": 32.0,
+          "wind_gusts_10m_max": 66.2,
+          "rain_sum": 2.6,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 60
+        },
+        {
+          "temperature_2m_max": 5.2,
+          "temperature_2m_min": -1.8,
+          "weather_code": 1,
+          "cloud_cover_mean": 25,
+          "wind_speed_10m_max": 17.1,
+          "wind_gusts_10m_max": 36.3,
+          "rain_sum": 0.0,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 10
+        },
+        {
+          "temperature_2m_max": 6.2,
+          "temperature_2m_min": -0.8,
+          "weather_code": 0,
+          "cloud_cover_mean": 10,
+          "wind_speed_10m_max": 9.6,
+          "wind_gusts_10m_max": 21.3,
+          "rain_sum": 0.0,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 0
+        }
+      ]
+    },
+    "Zell am See": {
+      "state": "Salzburg",
+      "elevation": 764,
+      "days": [
+        {
+          "temperature_2m_max": 8.0,
+          "temperature_2m_min": 1.0,
+          "weather_code": 45,
+          "cloud_cover_mean": 85,
+          "wind_speed_10m_max": 9.0,
+          "wind_gusts_10m_max": 20.2,
+          "rain_sum": 0.0,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 0
+        },
+        {
+          "temperature_2m_max": 10.0,
+          "temperature_2m_min": 3.0,
+          "weather_code": 1,
+          "cloud_cover_mean": 20,
+          "wind_speed_10m_max": 11.2,
+          "wind_gusts_10m_max": 24.7,
+          "rain_sum": 0.0,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 5
+        },
+        {
+          "temperature_2m_max": 9.0,
+          "temperature_2m_min": 2.0,
+          "weather_code": 3,
+          "cloud_cover_mean": 70,
+          "wind_speed_10m_max": 24.7,
+          "wind_gusts_10m_max": 50.4,
+          "rain_sum": 0.2,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 25
+        },
+        {
+          "temperature_2m_max": 4.0,
+          "temperature_2m_min": -3.0,
+          "weather_code": 61,
+          "cloud_cover_mean": 95,
+          "wind_speed_10m_max": 42.6,
+          "wind_gusts_10m_max": 87.4,
+          "rain_sum": 9.4,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 90
+        },
+        {
+          "temperature_2m_max": 2.0,
+          "temperature_2m_min": -5.0,
+          "weather_code": 80,
+          "cloud_cover_mean": 80,
+          "wind_speed_10m_max": 33.6,
+          "wind_gusts_10m_max": 69.5,
+          "rain_sum": 2.6,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 60
+        },
+        {
+          "temperature_2m_max": 3.0,
+          "temperature_2m_min": -4.0,
+          "weather_code": 1,
+          "cloud_cover_mean": 25,
+          "wind_speed_10m_max": 17.9,
+          "wind_gusts_10m_max": 38.1,
+          "rain_sum": 0.0,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 10
+        },
+        {
+          "temperature_2m_max": 4.0,
+          "temperature_2m_min": -3.0,
+          "weather_code": 0,
+          "cloud_cover_mean": 10,
+          "wind_speed_10m_max": 10.1,
+          "wind_gusts_10m_max": 22.4,
+          "rain_sum": 0.0,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 0
+        }
+      ]
+    },
+    "Lienz": {
+      "state": "Tirol",
+      "elevation": 681,
+      "days": [
+        {
+          "temperature_2m_max": 8.6,
+          "temperature_2m_min": 1.6,
+          "weather_code": 45,
+          "cloud_cover_mean": 85,
+          "wind_speed_10m_max": 8.9,
+          "wind_gusts_10m_max": 19.9,
+          "rain_sum": 0.0,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 0
+        },
+        {
+          "temperature_2m_max": 10.6,
+          "temperature_2m_min": 3.6,
+          "weather_code": 1,
+          "cloud_cover_mean": 20,
+          "wind_speed_10m_max": 11.1,
+          "wind_gusts_10m_max": 24.4,
+          "rain_sum": 0.0,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 5
+        },
+        {
+          "temperature_2m_max": 9.6,
+          "temperature_2m_min": 2.6,
+          "weather_code": 3,
+          "cloud_cover_mean": 70,
+          "wind_speed_10m_max": 24.4,
+          "wind_gusts_10m_max": 49.8,
+          "rain_sum": 0.2,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 25
+        },
+        {
+          "temperature_2m_max": 4.6,
+          "temperature_2m_min": -2.4,
+          "weather_code": 61,
+          "cloud_cover_mean": 95,
+          "wind_speed_10m_max": 42.1,
+          "wind_gusts_10m_max": 86.4,
+          "rain_sum": 9.4,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 90
+        },
+        {
+          "temperature_2m_max": 2.6,
+          "temperature_2m_min": -4.4,
+          "weather_code": 80,
+          "cloud_cover_mean": 80,
+          "wind_speed_10m_max": 33.2,
+          "wind_gusts_10m_max": 68.7,
+          "rain_sum": 2.6,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 60
+        },
+        {
+          "temperature_2m_max": 3.6,
+          "temperature_2m_min": -3.4,
+          "weather_code": 1,
+          "cloud_cover_mean": 25,
+          "wind_speed_10m_max": 17.7,
+          "wind_gusts_10m_max": 37.7,
+          "rain_sum": 0.0,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 10
+        },
+        {
+          "temperature_2m_max": 4.6,
+          "temperature_2m_min": -2.4,
+          "weather_code": 0,
+          "cloud_cover_mean": 10,
+          "wind_speed_10m_max": 10.0,
+          "wind_gusts_10m_max": 22.2,
+          "rain_sum": 0.0,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 0
+        }
+      ]
+    },
+    "Schmittenhöhe": {
+      "state": "Salzburg",
+      "elevation": 1965,
+      "days": [
+        {
+          "temperature_2m_max": 3.2,
+          "temperature_2m_min": -0.8,
+          "weather_code": 0,
+          "cloud_cover_mean": 5,
+          "wind_speed_10m_max": 10.5,
+          "wind_gusts_10m_max": 23.6,
+          "rain_sum": 0.0,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 0
+        },
+        {
+          "temperature_2m_max": 2.2,
+          "temperature_2m_min": -1.8,
+          "weather_code": 1,
+          "cloud_cover_mean": 20,
+          "wind_speed_10m_max": 13.1,
+          "wind_gusts_10m_max": 28.8,
+          "rain_sum": 0.0,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 5
+        },
+        {
+          "temperature_2m_max": 1.2,
+          "temperature_2m_min": -2.8,
+          "weather_code": 3,
+          "cloud_cover_mean": 70,
+          "wind_speed_10m_max": 28.8,
+          "wind_gusts_10m_max": 59.0,
+          "rain_sum": 0.2,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 25
+        },
+        {
+          "temperature_2m_max": -3.8,
+          "temperature_2m_min": -7.8,
+          "weather_code": 71,
+          "cloud_cover_mean": 95,
+          "wind_speed_10m_max": 49.8,
+          "wind_gusts_10m_max": 102.2,
+          "rain_sum": 0.0,
+          "snowfall_sum": 10.3,
+          "precipitation_probability_max": 90
+        },
+        {
+          "temperature_2m_max": -5.8,
+          "temperature_2m_min": -9.8,
+          "weather_code": 85,
+          "cloud_cover_mean": 80,
+          "wind_speed_10m_max": 39.3,
+          "wind_gusts_10m_max": 81.2,
+          "rain_sum": 0.0,
+          "snowfall_sum": 2.9,
+          "precipitation_probability_max": 60
+        },
+        {
+          "temperature_2m_max": -4.8,
+          "temperature_2m_min": -8.8,
+          "weather_code": 1,
+          "cloud_cover_mean": 25,
+          "wind_speed_10m_max": 21.0,
+          "wind_gusts_10m_max": 44.5,
+          "rain_sum": 0.0,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 10
+        },
+        {
+          "temperature_2m_max": -3.8,
+          "temperature_2m_min": -7.8,
+          "weather_code": 0,
+          "cloud_cover_mean": 10,
+          "wind_speed_10m_max": 11.8,
+          "wind_gusts_10m_max": 26.2,
+          "rain_sum": 0.0,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 0
+        }
+      ]
+    },
+    "Hochkönig": {
+      "state": "Salzburg",
+      "elevation": 2941,
+      "days": [
+        {
+          "temperature_2m_max": -3.1,
+          "temperature_2m_min": -7.1,
+          "weather_code": 0,
+          "cloud_cover_mean": 5,
+          "wind_speed_10m_max": 11.7,
+          "wind_gusts_10m_max": 26.4,
+          "rain_sum": 0.0,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 0
+        },
+        {
+          "temperature_2m_max": -4.1,
+          "temperature_2m_min": -8.1,
+          "weather_code": 1,
+          "cloud_cover_mean": 20,
+          "wind_speed_10m_max": 14.6,
+          "wind_gusts_10m_max": 32.2,
+          "rain_sum": 0.0,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 5
+        },
+        {
+          "temperature_2m_max": -5.1,
+          "temperature_2m_min": -9.1,
+          "weather_code": 3,
+          "cloud_cover_mean": 70,
+          "wind_speed_10m_max": 32.2,
+          "wind_gusts_10m_max": 65.9,
+          "rain_sum": 0.0,
+          "snowfall_sum": 0.2,
+          "precipitation_probability_max": 25
+        },
+        {
+          "temperature_2m_max": -10.1,
+          "temperature_2m_min": -14.1,
+          "weather_code": 71,
+          "cloud_cover_mean": 95,
+          "wind_speed_10m_max": 55.6,
+          "wind_gusts_10m_max": 114.2,
+          "rain_sum": 0.0,
+          "snowfall_sum": 10.3,
+          "precipitation_probability_max": 90
+        },
+        {
+          "temperature_2m_max": -12.1,
+          "temperature_2m_min": -16.1,
+          "weather_code": 85,
+          "cloud_cover_mean": 80,
+          "wind_speed_10m_max": 43.9,
+          "wind_gusts_10m_max": 90.8,
+          "rain_sum": 0.0,
+          "snowfall_sum": 2.9,
+          "precipitation_probability_max": 60
+        },
+        {
+          "temperature_2m_max": -11.1,
+          "temperature_2m_min": -15.1,
+          "weather_code": 1,
+          "cloud_cover_mean": 25,
+          "wind_speed_10m_max": 23.4,
+          "wind_gusts_10m_max": 49.8,
+          "rain_sum": 0.0,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 10
+        },
+        {
+          "temperature_2m_max": -10.1,
+          "temperature_2m_min": -14.1,
+          "weather_code": 0,
+          "cloud_cover_mean": 10,
+          "wind_speed_10m_max": 13.2,
+          "wind_gusts_10m_max": 29.3,
+          "rain_sum": 0.0,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 0
+        }
+      ]
+    },
+    "Hoher Dachstein": {
+      "state": "Oberösterreich",
+      "elevation": 2995,
+      "days": [
+        {
+          "temperature_2m_max": -3.5,
+          "temperature_2m_min": -7.5,
+          "weather_code": 0,
+          "cloud_cover_mean": 5,
+          "wind_speed_10m_max": 11.8,
+          "wind_gusts_10m_max": 26.5,
+          "rain_sum": 0.0,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 0
+        },
+        {
+          "temperature_2m_max": -4.5,
+          "temperature_2m_min": -8.5,
+          "weather_code": 1,
+          "cloud_cover_mean": 20,
+          "wind_speed_10m_max": 14.7,
+          "wind_gusts_10m_max": 32.4,
+          "rain_sum": 0.0,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 5
+        },
+        {
+          "temperature_2m_max": -5.5,
+          "temperature_2m_min": -9.5,
+          "weather_code": 3,
+          "cloud_cover_mean": 70,
+          "wind_speed_10m_max": 32.4,
+          "wind_gusts_10m_max": 66.3,
+          "rain_sum": 0.0,
+          "snowfall_sum": 0.2,
+          "precipitation_probability_max": 25
+        },
+        {
+          "temperature_2m_max": -10.5,
+          "temperature_2m_min": -14.5,
+          "weather_code": 71,
+          "cloud_cover_mean": 95,
+          "wind_speed_10m_max": 56.0,
+          "wind_gusts_10m_max": 114.9,
+          "rain_sum": 0.0,
+          "snowfall_sum": 10.3,
+          "precipitation_probability_max": 90
+        },
+        {
+          "temperature_2m_max": -12.5,
+          "temperature_2m_min": -16.5,
+          "weather_code": 85,
+          "cloud_cover_mean": 80,
+          "wind_speed_10m_max": 44.2,
+          "wind_gusts_10m_max": 91.3,
+          "rain_sum": 0.0,
+          "snowfall_sum": 2.9,
+          "precipitation_probability_max": 60
+        },
+        {
+          "temperature_2m_max": -11.5,
+          "temperature_2m_min": -15.5,
+          "weather_code": 1,
+          "cloud_cover_mean": 25,
+          "wind_speed_10m_max": 23.6,
+          "wind_gusts_10m_max": 50.1,
+          "rain_sum": 0.0,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 10
+        },
+        {
+          "temperature_2m_max": -10.5,
+          "temperature_2m_min": -14.5,
+          "weather_code": 0,
+          "cloud_cover_mean": 10,
+          "wind_speed_10m_max": 13.3,
+          "wind_gusts_10m_max": 29.5,
+          "rain_sum": 0.0,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 0
+        }
+      ]
+    },
+    "Großglockner": {
+      "state": "Tirol",
+      "elevation": 3798,
+      "days": [
+        {
+          "temperature_2m_max": -8.7,
+          "temperature_2m_min": -12.7,
+          "weather_code": 0,
+          "cloud_cover_mean": 5,
+          "wind_speed_10m_max": 12.8,
+          "wind_gusts_10m_max": 28.8,
+          "rain_sum": 0.0,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 0
+        },
+        {
+          "temperature_2m_max": -9.7,
+          "temperature_2m_min": -13.7,
+          "weather_code": 1,
+          "cloud_cover_mean": 20,
+          "wind_speed_10m_max": 16.0,
+          "wind_gusts_10m_max": 35.2,
+          "rain_sum": 0.0,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 5
+        },
+        {
+          "temperature_2m_max": -10.7,
+          "temperature_2m_min": -14.7,
+          "weather_code": 3,
+          "cloud_cover_mean": 70,
+          "wind_speed_10m_max": 35.2,
+          "wind_gusts_10m_max": 72.0,
+          "rain_sum": 0.0,
+          "snowfall_sum": 0.2,
+          "precipitation_probability_max": 25
+        },
+        {
+          "temperature_2m_max": -15.7,
+          "temperature_2m_min": -19.7,
+          "weather_code": 71,
+          "cloud_cover_mean": 95,
+          "wind_speed_10m_max": 60.8,
+          "wind_gusts_10m_max": 124.8,
+          "rain_sum": 0.0,
+          "snowfall_sum": 10.3,
+          "precipitation_probability_max": 90
+        },
+        {
+          "temperature_2m_max": -17.7,
+          "temperature_2m_min": -21.7,
+          "weather_code": 85,
+          "cloud_cover_mean": 80,
+          "wind_speed_10m_max": 48.0,
+          "wind_gusts_10m_max": 99.2,
+          "rain_sum": 0.0,
+          "snowfall_sum": 2.9,
+          "precipitation_probability_max": 60
+        },
+        {
+          "temperature_2m_max": -16.7,
+          "temperature_2m_min": -20.7,
+          "weather_code": 1,
+          "cloud_cover_mean": 25,
+          "wind_speed_10m_max": 25.6,
+          "wind_gusts_10m_max": 54.4,
+          "rain_sum": 0.0,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 10
+        },
+        {
+          "temperature_2m_max": -15.7,
+          "temperature_2m_min": -19.7,
+          "weather_code": 0,
+          "cloud_cover_mean": 10,
+          "wind_speed_10m_max": 14.4,
+          "wind_gusts_10m_max": 32.0,
+          "rain_sum": 0.0,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 0
+        }
+      ]
+    }
+  },
+  "elevation_profiles": [
+    {
+      "label": "valley",
+      "min_elevation": 0,
+      "max_elevation": 999,
+      "_note": "generic profile for places not listed above, computed at 600 m",
+      "days": [
+        {
+          "temperature_2m_max": 9.1,
+          "temperature_2m_min": 2.1,
+          "weather_code": 45,
+          "cloud_cover_mean": 85,
+          "wind_speed_10m_max": 8.8,
+          "wind_gusts_10m_max": 19.7,
+          "rain_sum": 0.0,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 0
+        },
+        {
+          "temperature_2m_max": 11.1,
+          "temperature_2m_min": 4.1,
+          "weather_code": 1,
+          "cloud_cover_mean": 20,
+          "wind_speed_10m_max": 10.9,
+          "wind_gusts_10m_max": 24.1,
+          "rain_sum": 0.0,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 5
+        },
+        {
+          "temperature_2m_max": 10.1,
+          "temperature_2m_min": 3.1,
+          "weather_code": 3,
+          "cloud_cover_mean": 70,
+          "wind_speed_10m_max": 24.1,
+          "wind_gusts_10m_max": 49.3,
+          "rain_sum": 0.2,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 25
+        },
+        {
+          "temperature_2m_max": 5.1,
+          "temperature_2m_min": -1.9,
+          "weather_code": 61,
+          "cloud_cover_mean": 95,
+          "wind_speed_10m_max": 41.6,
+          "wind_gusts_10m_max": 85.4,
+          "rain_sum": 9.4,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 90
+        },
+        {
+          "temperature_2m_max": 3.1,
+          "temperature_2m_min": -3.9,
+          "weather_code": 80,
+          "cloud_cover_mean": 80,
+          "wind_speed_10m_max": 32.8,
+          "wind_gusts_10m_max": 67.9,
+          "rain_sum": 2.6,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 60
+        },
+        {
+          "temperature_2m_max": 4.1,
+          "temperature_2m_min": -2.9,
+          "weather_code": 1,
+          "cloud_cover_mean": 25,
+          "wind_speed_10m_max": 17.5,
+          "wind_gusts_10m_max": 37.2,
+          "rain_sum": 0.0,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 10
+        },
+        {
+          "temperature_2m_max": 5.1,
+          "temperature_2m_min": -1.9,
+          "weather_code": 0,
+          "cloud_cover_mean": 10,
+          "wind_speed_10m_max": 9.9,
+          "wind_gusts_10m_max": 21.9,
+          "rain_sum": 0.0,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 0
+        }
+      ]
+    },
+    {
+      "label": "mid-mountain",
+      "min_elevation": 1000,
+      "max_elevation": 1999,
+      "_note": "generic profile for places not listed above, computed at 1500 m",
+      "days": [
+        {
+          "temperature_2m_max": 6.2,
+          "temperature_2m_min": 2.2,
+          "weather_code": 0,
+          "cloud_cover_mean": 5,
+          "wind_speed_10m_max": 9.9,
+          "wind_gusts_10m_max": 22.3,
+          "rain_sum": 0.0,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 0
+        },
+        {
+          "temperature_2m_max": 5.2,
+          "temperature_2m_min": 1.2,
+          "weather_code": 1,
+          "cloud_cover_mean": 20,
+          "wind_speed_10m_max": 12.4,
+          "wind_gusts_10m_max": 27.2,
+          "rain_sum": 0.0,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 5
+        },
+        {
+          "temperature_2m_max": 4.2,
+          "temperature_2m_min": 0.2,
+          "weather_code": 3,
+          "cloud_cover_mean": 70,
+          "wind_speed_10m_max": 27.2,
+          "wind_gusts_10m_max": 55.7,
+          "rain_sum": 0.2,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 25
+        },
+        {
+          "temperature_2m_max": -0.8,
+          "temperature_2m_min": -4.8,
+          "weather_code": 71,
+          "cloud_cover_mean": 95,
+          "wind_speed_10m_max": 47.0,
+          "wind_gusts_10m_max": 96.5,
+          "rain_sum": 0.0,
+          "snowfall_sum": 10.3,
+          "precipitation_probability_max": 90
+        },
+        {
+          "temperature_2m_max": -2.8,
+          "temperature_2m_min": -6.8,
+          "weather_code": 85,
+          "cloud_cover_mean": 80,
+          "wind_speed_10m_max": 37.1,
+          "wind_gusts_10m_max": 76.7,
+          "rain_sum": 0.0,
+          "snowfall_sum": 2.9,
+          "precipitation_probability_max": 60
+        },
+        {
+          "temperature_2m_max": -1.8,
+          "temperature_2m_min": -5.8,
+          "weather_code": 1,
+          "cloud_cover_mean": 25,
+          "wind_speed_10m_max": 19.8,
+          "wind_gusts_10m_max": 42.1,
+          "rain_sum": 0.0,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 10
+        },
+        {
+          "temperature_2m_max": -0.8,
+          "temperature_2m_min": -4.8,
+          "weather_code": 0,
+          "cloud_cover_mean": 10,
+          "wind_speed_10m_max": 11.1,
+          "wind_gusts_10m_max": 24.7,
+          "rain_sum": 0.0,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 0
+        }
+      ]
+    },
+    {
+      "label": "high-mountain",
+      "min_elevation": 2000,
+      "max_elevation": 9000,
+      "_note": "generic profile for places not listed above, computed at 2800 m",
+      "days": [
+        {
+          "temperature_2m_max": -2.2,
+          "temperature_2m_min": -6.2,
+          "weather_code": 0,
+          "cloud_cover_mean": 5,
+          "wind_speed_10m_max": 11.5,
+          "wind_gusts_10m_max": 26.0,
+          "rain_sum": 0.0,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 0
+        },
+        {
+          "temperature_2m_max": -3.2,
+          "temperature_2m_min": -7.2,
+          "weather_code": 1,
+          "cloud_cover_mean": 20,
+          "wind_speed_10m_max": 14.4,
+          "wind_gusts_10m_max": 31.7,
+          "rain_sum": 0.0,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 5
+        },
+        {
+          "temperature_2m_max": -4.2,
+          "temperature_2m_min": -8.2,
+          "weather_code": 3,
+          "cloud_cover_mean": 70,
+          "wind_speed_10m_max": 31.7,
+          "wind_gusts_10m_max": 64.9,
+          "rain_sum": 0.0,
+          "snowfall_sum": 0.2,
+          "precipitation_probability_max": 25
+        },
+        {
+          "temperature_2m_max": -9.2,
+          "temperature_2m_min": -13.2,
+          "weather_code": 71,
+          "cloud_cover_mean": 95,
+          "wind_speed_10m_max": 54.8,
+          "wind_gusts_10m_max": 112.5,
+          "rain_sum": 0.0,
+          "snowfall_sum": 10.3,
+          "precipitation_probability_max": 90
+        },
+        {
+          "temperature_2m_max": -11.2,
+          "temperature_2m_min": -15.2,
+          "weather_code": 85,
+          "cloud_cover_mean": 80,
+          "wind_speed_10m_max": 43.3,
+          "wind_gusts_10m_max": 89.4,
+          "rain_sum": 0.0,
+          "snowfall_sum": 2.9,
+          "precipitation_probability_max": 60
+        },
+        {
+          "temperature_2m_max": -10.2,
+          "temperature_2m_min": -14.2,
+          "weather_code": 1,
+          "cloud_cover_mean": 25,
+          "wind_speed_10m_max": 23.1,
+          "wind_gusts_10m_max": 49.0,
+          "rain_sum": 0.0,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 10
+        },
+        {
+          "temperature_2m_max": -9.2,
+          "temperature_2m_min": -13.2,
+          "weather_code": 0,
+          "cloud_cover_mean": 10,
+          "wind_speed_10m_max": 13.0,
+          "wind_gusts_10m_max": 28.8,
+          "rain_sum": 0.0,
+          "snowfall_sum": 0.0,
+          "precipitation_probability_max": 0
+        }
+      ]
+    }
+  ],
+  "part_of_day_adjustments": {
+    "morning": {
+      "temperature_max_delta": -3.0,
+      "temperature_min_delta": 0.0,
+      "wind_factor": 0.7,
+      "precipitation_factor": 0.3
+    },
+    "afternoon": {
+      "temperature_max_delta": 0.0,
+      "temperature_min_delta": 3.0,
+      "wind_factor": 1.0,
+      "precipitation_factor": 0.4
+    },
+    "evening": {
+      "temperature_max_delta": -2.0,
+      "temperature_min_delta": 1.0,
+      "wind_factor": 0.8,
+      "precipitation_factor": 0.2
+    },
+    "night": {
+      "temperature_max_delta": -5.0,
+      "temperature_min_delta": -1.0,
+      "wind_factor": 0.6,
+      "precipitation_factor": 0.2
+    }
+  }
+}

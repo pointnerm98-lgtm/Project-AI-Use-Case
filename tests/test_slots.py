@@ -32,6 +32,8 @@ from peakcast.slots import (
     extract_slots,
     find_day,
     find_place,
+    get_place_index,
+    load_aliases,
     normalise_name,
 )
 
@@ -163,6 +165,91 @@ def test_shortened_compound_names_resolve_to_the_full_name(
     assert place.name == expected_name
     # Still an assumption, so it must be flagged for confirmation.
     assert place.fuzzy is True
+
+
+# --- Place: the curated aliases -------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "message, expected_name",
+    [
+        # Each of these resolved to a *different real place* before the alias
+        # file existed, which is the error class aliases are for.
+        ("will the trail be wet on the Rax tomorrow", "Raxalpe"),
+        ("whats it like temperature wise on the Rax", "Raxalpe"),
+        ("weather in Rax", "Raxalpe"),
+        ("gusts on the Glockner", "Großglockner"),
+        ("how cold on the Glockner tomorrow", "Großglockner"),
+        ("snow at the Schmitten", "Schmittenhöhe"),
+        ("temperature on the Sonnblick tonight", "Hoher Sonnblick"),
+        ("cloud base at the Emberger Alm", "Emberger Alpe"),
+    ],
+)
+def test_curated_aliases_win_over_the_gazetteer(
+    message: str, expected_name: str
+) -> None:
+    """A hand-curated short name must beat the gazetteer's own answer.
+
+    The aliases exist precisely because the gazetteer gets these wrong, so
+    they are checked before it, not after.
+    """
+    place = find_place(message)
+    assert place is not None, f"no place found in {message!r}"
+    assert place.name == expected_name
+    # An alias is an exact, hand-checked mapping, not a guess.
+    assert place.fuzzy is False
+
+
+def test_alias_keeps_the_users_wording() -> None:
+    """The matched text must record what the user typed, not the official name."""
+    place = find_place("how windy on the Glockner")
+    assert place is not None
+    assert place.name == "Großglockner"
+    assert place.matched_text == "the Glockner"
+
+
+def test_aliases_do_not_shadow_the_full_name() -> None:
+    """The official long names must still resolve on their own."""
+    for message, expected in [
+        ("weather on the Raxalpe", "Raxalpe"),
+        ("Grossglockner wind tomorrow", "Großglockner"),
+        ("conditions at the Schmittenhoehe", "Schmittenhöhe"),
+    ]:
+        place = find_place(message)
+        assert place is not None
+        assert place.name == expected
+
+
+def test_every_alias_resolves_to_a_real_gazetteer_row() -> None:
+    """A typo in the alias file must fail loudly, not silently do nothing.
+
+    Building the index raises on an unresolvable alias; this test simply
+    asserts that the shipped file is clean and that each alias points at
+    exactly one place.
+    """
+    index = get_place_index()
+    aliases = load_aliases()
+    assert aliases, "the alias file should not be empty"
+    for row in aliases:
+        key = normalise_name(row["alias"])
+        assert key in index.by_alias, f"alias {row['alias']!r} did not resolve"
+        assert index.by_alias[key].name == row["geonames_name"]
+        # Every alias must carry a reason; an undocumented alias list is
+        # indistinguishable from a list of arbitrary preferences.
+        assert row["reason"].strip(), f"alias {row['alias']!r} has no reason"
+
+
+def test_hohe_wand_resolves_after_adding_cliffs() -> None:
+    """The Hohe Wand must resolve to the climbing plateau, not a hamlet.
+
+    It is filed under the GeoNames feature code CLF, which was missing from
+    the kept codes; without it the scan fell through to the unrelated hamlet
+    "Höhe" in Kärnten.
+    """
+    place = find_place("will the wind drop in the evening at the Hohe Wand")
+    assert place is not None
+    assert place.name == "Hohe Wand"
+    assert place.state == "Niederösterreich"
 
 
 def test_language_name_is_not_read_as_a_place() -> None:

@@ -156,7 +156,10 @@ BEFORE the intent classifier**. If the message matches `avalanche` / `lawine` or
 variants (including `avalanch`, `avalance`, `lawinen-`, `lawinengefahr`, and the
 abbreviation `LWD`), the bot skips classification entirely and returns a **fixed
 referral** to the official avalanche warning service (avalanche.report / the regional
-Lawinenwarndienst), with no forecast values attached.
+Lawinenwarndienst), with no forecast values attached. *(Corrected in step 6:
+avalanche.report covers only Tyrol, South Tyrol and Trentino, not Austria. The
+implemented guard points at lawinen.at, the joint portal of the state services,
+and adds avalanche.report only for places in Tyrol - see the step 6 entry.)*
 
 Design notes:
 - Order matters: guard first, classifier second. A guard behind the classifier would
@@ -698,3 +701,297 @@ English word was read as a place. Six of the seven non-exact matches are correct
 - The dialogue manager still owes: calling the guard **first**, remembering the
   last place, confirming back when `Place.fuzzy` is set, and saying "I can only
   forecast 7 days ahead" when `DaySlot.in_range` is false.
+
+---
+
+## Step 6 — Weather service, plus two corrections to step 5 (2026-11-04)
+
+### Correction 1 — the avalanche referral named the wrong service
+
+The step 2 plan and the step 5 implementation both pointed the user at
+**avalanche.report**. That was factually wrong in a way that matters for a
+safety referral: avalanche.report is the **Euregio** bulletin and covers only
+**Tyrol, South Tyrol and Trentino**. In Austria avalanche warning is organised
+**per federal state**, and the joint portal of the state services, with a map
+for the whole country, is **lawinen.at**.
+
+Sending someone in Styria or Carinthia to a bulletin that does not cover their
+mountain is exactly the failure the guard exists to prevent — it would have
+looked like authoritative advice while being useless.
+
+The guard now:
+
+- points at **lawinen.at** by default, for every message;
+- **additionally** names avalanche.report when a place in **Tirol** was
+  extracted, where it genuinely applies.
+
+`check_message(message, state=None)` takes the state as an **optional** second
+argument, and the ordering decision from step 5 is unchanged: the guard still
+runs first and never waits for place extraction. The state only *refines* the
+referral. If extraction fails or is skipped, the user still gets the correct
+nationwide portal — the safety behaviour does not depend on the NLU succeeding.
+
+Tests: the default referral is asserted **not** to contain avalanche.report,
+the Tyrol case is asserted to contain both, and one end-to-end test runs the
+real extractor over "avalanche risk on the Wildspitze" (Tirol → both) and
+"avalanche danger on the Hochschwab" (Steiermark → lawinen.at only). That last
+test also pins the contract between the two modules: the guard reads the state
+exactly as `Place.state` spells it.
+
+The step 2 entry has been corrected in place with a visible note, as with the
+embeddings correction in step 5.
+
+### Correction 2 — the alias file, and two more bugs it uncovered
+
+`data/place_aliases.csv` holds the colloquial short names GeoNames does not
+carry. Each row is `alias, geonames_name, state, reason`; the alias **selects
+an existing gazetteer row** and can never introduce coordinates of its own, so
+it cannot point a forecast at an unverified location. Checked **before** the
+gazetteer, because the gazetteer is what gets these wrong. Every row carries a
+reason — an undocumented alias list is indistinguishable from a list of
+arbitrary preferences. An alias that fails to resolve raises at index build
+time rather than silently doing nothing.
+
+The eight rows, and what each was answering before:
+
+| alias | resolved to (wrong) | now |
+| --- | --- | --- |
+| the Rax / Rax | **Rax, Burgenland** (village, 615) | Raxalpe |
+| the Glockner / Glockner | **Glöcknerin, Salzburg** (a different mountain) | Großglockner |
+| Schmitten / die Schmitten | **Schmitten** (village at the valley station, 1 200 m lower) | Schmittenhöhe |
+| Sonnblick | **Stubacher Sonnblick, Tirol** (a different 3 000er) | Hoher Sonnblick |
+| Emberger Alm | **Maria Alm am Steinernen Meer** | Emberger Alpe |
+
+Auditing my own intent data for "other short names that resolve wrongly"
+turned up two further problems that aliases were the wrong fix for:
+
+1. **"at the Hohe Wand" → the hamlet "Höhe" in Kärnten.** The Hohe Wand is a
+   well-known climbing and hiking plateau in Niederösterreich, and it *is* in
+   the dump — filed under the feature code **`CLF`** (cliff), which was not in
+   the kept set. Adding `CLF` is the right fix rather than an alias: cliffs are
+   legitimate destinations for this bot's users, and the alias would have
+   papered over a whole missing category. (+196 rows.)
+2. **"Emberger Alm" → Maria Alm.** GeoNames spells it *Alpe*, so the full name
+   missed, and the scan fell back to the single token "Alm" — which is in the
+   ambiguous-word list but was capitalised, so the capitalisation evidence let
+   it through to Maria Alm's alternate name "Alm". This one *is* an alias case,
+   because the spelling difference is in the data, not in the matcher.
+
+Not changed, and noted rather than patched:
+
+- **"Montafon" → Sankt Anton im Montafon** (715 inhabitants). The Montafon is a
+  valley; resolving it to one arbitrary village in that valley is defensible
+  but not ideal. Not *wrong* in the way the alias cases were, so it stays out
+  of a file meant to be small and curated.
+- **"Annaberg" → Annaberg im Lammertal.** There are three Annabergs; the
+  documented population rule picks the largest. Inherent ambiguity, correctly
+  handled by the documented rule.
+- **"Mittagskogel" → Kepa.** The correct mountain, under its Slovene name,
+  which is what GeoNames stores as canonical. An alias cannot rename a row, so
+  this stays on the display-name list below with *Mölltaler Gletscher →
+  Wurtenkees*.
+
+#### Slot metrics, before and after
+
+| | before (step 5) | after |
+| --- | --- | --- |
+| Place accuracy | 0.981 (51/52) | **1.000 (52/52)** |
+| Day accuracy | 1.000 | 1.000 |
+| Part-of-day accuracy | 1.000 | 1.000 |
+| Places matched with no capitalised word (400 intent sentences) | 0 | **0** |
+
+The one remaining step 5 error ("the Rax") is gone, and the false-positive
+count stayed at zero — the aliases bought recall without costing precision.
+
+**The false-positive metric itself had to be fixed to stay meaningful.** The
+step 5 audit counted "places matched from a lower-case word" by looking at the
+first character of the matched text. After the aliases, that counted 4 — all of
+them the alias `"the Rax"`, where the lower-case word is the *article* and
+"Rax" is capitalised. The metric now checks whether **any** word in the matched
+text is capitalised, and is computed inside `evaluate_slots.py` rather than by
+an ad-hoc command, so the number in this table is reproducible.
+
+### Step 6 — the weather service
+
+`peakcast/weather.py`. One public entry point, `get_forecast(place, day)`,
+returning a `WeatherReport`.
+
+#### The decision that matters: send the elevation
+
+Open-Meteo otherwise answers for the mean elevation of its grid cell, which
+near a summit is a different mountain:
+
+| Request for the Großglockner | Model elevation | Max temperature |
+| --- | --- | --- |
+| no elevation parameter | 3 650 m | −8.9 °C |
+| `elevation=3798` | 3 798 m | **−9.8 °C** |
+
+A degree is the difference between rain and snow, so this is not cosmetic. It
+is also the retrospective justification for two earlier decisions: keeping the
+elevation of every gazetteer row, and **excluding the administrative divisions**
+in step 5 — their elevation describes an area, and `ADM3 Sölden` at 2 856 m
+would have produced a forecast for 1 500 m above the village.
+
+#### Daily values, and the part-of-day path
+
+Daily: temperature max/min, WMO code, mean cloud cover, max wind, **max
+gusts**, rain (mm), snowfall (cm), max precipitation probability. Units are
+requested explicitly rather than taken from the API defaults, so a change on
+their side cannot silently turn km/h into m/s in the answers. Open-Meteo
+already returns snowfall in cm and rain in mm, which is the pair a ski tourer
+wants.
+
+When a part of day was extracted, the values are computed from **hourly** data
+for that window instead, because averaging the whole day would answer a
+different question. Each variable is reduced by its own rule, and the rule
+matters:
+
+| variable | reduction | why |
+| --- | --- | --- |
+| temperature | max / min | as the daily block does |
+| wind, gusts | **max** | what matters is the strongest gust someone is exposed to, not the average |
+| rain, snowfall | **sum** | they are per-hour amounts |
+| probability | max | matches `precipitation_probability_max` |
+| cloud cover | mean | matches `cloud_cover_mean` |
+| WMO code | **max** | "the worst it gets in that window", which is what a tour planner needs |
+
+The WMO ordering is only approximately severity-ordered, which is why the code
+is used for the sky category and never printed as a number.
+
+Windows, in local Vienna hours: morning 06–12, afternoon 12–18, evening 18–23,
+night **21–06 crossing midnight**. The night window is the interesting one:
+someone asking "how cold tonight" at 18:00 means the hours they will actually
+be out in, which run into the small hours. There is a test that puts the
+coldest hour at 03:00 the *next* day and a sentinel at 14:00 the same day, so
+it fails both if the window stops at midnight and if it leaks into the
+afternoon.
+
+#### Sky mapping
+
+Three rules, in order, documented on the function:
+
+1. WMO **45/48 → `foggy`**. Fog is its own category rather than part of
+   "cloudy", because for this use case it is a different answer: fog on a
+   summit means no view and poor orientation, which is what `ask_sky` is
+   actually about.
+2. Any code from **51 (drizzle) upwards → `cloudy`**. Precipitation implies
+   cloud, so the bot can never report "sunny" for an hour it also says is
+   raining — an inconsistency the cloud thresholds alone would allow, since a
+   shower can fall on a day averaging 20 % cloud.
+3. Otherwise **cloud cover decides**: `< 25 %` sunny, `25–75 %` partly cloudy,
+   `≥ 75 %` cloudy. These follow the okta convention (the sky is reported in
+   eighths; "clear" is up to 2/8 = 25 %). The upper bound is 75 % rather than
+   the textbook 87.5 % because this value is a *mean* over a day or a window,
+   and a daily mean of 75 % already means very little sun.
+
+#### Robustness
+
+Six-second timeout, **one** retry, a ten-minute in-memory cache, and any
+failure falls back to the offline dataset.
+
+- Six seconds because a user on mobile data at a trailhead will not wait, and
+  the fallback should feel like an answer rather than a hang.
+- One retry, not three: the common failure is a single dropped packet, and
+  further attempts only lengthen the wait before the fallback that was always
+  coming.
+- The cache is keyed by rounded coordinates plus elevation and stores the whole
+  payload, which covers the full week. That makes the concept's
+  *"And what about tomorrow?"* follow-up cost **zero** requests — there is a
+  test asserting two different days at one place produce one HTTP call.
+- A plain dict rather than `functools.lru_cache`, because entries have to
+  expire: a cached forecast is useful for minutes and wrong by tomorrow.
+
+**Out-of-range days raise instead of falling back.** This is the one deliberate
+asymmetry. The network being down is a reason to show demo data; a question
+about nine days out has an honest answer ("I can only forecast 7 days ahead"),
+and quietly inventing numbers would be worse than saying so.
+
+#### The offline fallback
+
+`data/offline_forecasts.json`, fictional values for 8 demo places — 4 valley
+towns (Innsbruck, Salzburg, Zell am See, Lienz) and 4 summits (Schmittenhöhe,
+Hochkönig, Hoher Dachstein, Großglockner) — **keyed by day offset 0–6, never by
+date**, so the demo cannot go stale. A test asserts no ISO date string appears
+anywhere in the values.
+
+Two things that made it better than a pile of plausible-looking numbers:
+
+- **One coherent weather story across every place**: settled high pressure with
+  valley inversion fog on day 0, a front crossing on day 3 with rain in the
+  valleys and snow higher up, clearing by day 5. Temperatures follow the
+  standard 6.5 °C/km lapse rate from a common sea-level value, and wind
+  increases with exposure. So the 8 places agree with each other, which a
+  per-place invention would not have.
+- **Unlisted places get an elevation-banded generic profile** (valley /
+  mid-mountain / high-mountain) rather than one flat default. Elevation is what
+  decides whether a plausible answer is +12 °C and rain or −6 °C and snow;
+  without the bands, offline mode would have answered a question about a
+  3 000 m summit with valley numbers.
+
+An error caught by writing the consistency test rather than by reading the
+data: the first draft used a **fixed snow line per day**, which produced
+**rain at −5.8 °C on the Schmittenhöhe**. The split now follows the computed
+temperature at that elevation. Fictional does not mean careless — implausible
+demo data undermines the demo it exists for, so the property is pinned by a
+test that checks every value in the file: no rain at or below freezing, no snow
+above +4 °C, gusts never below mean wind, min never above max, percentages in
+range.
+
+#### `source` is part of the report
+
+`WeatherReport.source` is `"live"` or `"offline"`, with an `is_offline`
+convenience property. The response generator is required to say when sample
+data was used: **a fictional forecast must never be presentable as a real
+one.** `try_weather.py` prints it in capitals for the offline case, and the
+dataset's own header says the same thing.
+
+Both paths go through one construction function, so the live and offline
+reports can never drift into exposing different fields or a different sky rule.
+
+### Testing
+
+**178 tests, no network required**, plus 2 live smoke tests behind a `--live`
+flag (`tests/conftest.py`).
+
+Skipped by default because a suite that needs the internet is not a suite — it
+fails on a train and in a CI container without egress. Kept because a fully
+mocked suite can pass while the real API has renamed a field, which is the one
+thing mocks cannot catch. The live tests check a valley town and a 3 798 m
+summit, and assert that the elevation requested is the elevation the model
+used.
+
+The mocked tests concentrate on the failure paths and the aggregation, since
+those are where a bug would be invisible in the output: timeout, HTTP 500, and
+a 200 response with no `daily` block (checked separately, because a status-code
+check alone would miss it) must each produce an offline report; the retry must
+recover a single dropped request; the cache must not serve one place's forecast
+for another.
+
+One test bug worth recording, because it is the kind that produces false
+confidence: the hourly fixture filled unlisted hours with a `−99` sentinel so a
+wrong window would be obvious. That works for the afternoon window, but the
+night window legitimately spans hours the test did not set, so the night test
+failed with `−99` against the expected `−12`. The fixture now takes a
+`default_temperature`, and the night test sets a neutral baseline plus an
+explicit out-of-window sentinel. The test was wrong, not the code — but a
+fixture that cannot distinguish those two is a liability.
+
+`scripts/try_weather.py` runs the whole chain for one typed message — guard,
+slots, forecast — so a single screenshot shows every component built so far,
+including the guard refusing an avalanche question with the Tyrol-specific
+referral and the out-of-range day being declined.
+
+### Open points for the next step
+
+- **Display names.** `Place.name` echoes the gazetteer's canonical name, which
+  is occasionally not what an Austrian user would say: *Mölltaler Gletscher* →
+  **Wurtenkees**, *Mittagskogel* → **Kepa**. `matched_text` already carries the
+  user's own wording, so the response generator should prefer it and mention
+  the official name once.
+- The response generator owes: the `source == "offline"` disclosure, the
+  `Place.fuzzy` confirmation ("I assumed you meant Innsbruck"), the
+  out-of-range message, and the step 2 decision that **snow is reported before
+  rain when the question mentioned snow**.
+- `precipitation_probability_max` is fetched but not yet used in any answer.
+- The dialogue manager still owes: guard first, remembering the last place, and
+  ending the conversation after a goodbye or roughly ten answers.

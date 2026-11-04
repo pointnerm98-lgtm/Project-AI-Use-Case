@@ -100,6 +100,11 @@ KEEP_FEATURE_CODES: frozenset[str] = frozenset(
         "VAL",     # valley
         "CRQ",     # cirque
         "SLP",     # slope (named ski runs)
+        "CLF",     # cliff - added in the step 5 review: the Hohe Wand,
+                   # a well-known climbing and hiking plateau in
+                   # Niederoesterreich, is filed under this code, and
+                   # without it "at the Hohe Wand" fell through to the
+                   # unrelated hamlet "Hoehe" in Kaernten
         # --- H: water and ice
         "GLCR",    # glacier
         "LK",      # lake

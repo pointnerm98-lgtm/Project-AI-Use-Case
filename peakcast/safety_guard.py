@@ -51,17 +51,40 @@ import re
 import unicodedata
 
 # --- The referral answer ---------------------------------------------------
-# One fixed string, with no forecast values interpolated into it. Names both
-# the nationwide portal and the regional service, because the regional
-# Lawinenwarndienst bulletins are the authoritative source and avalanche.report
-# is the common entry point for all Austrian federal states.
+# One fixed string, with no forecast values interpolated into it.
+#
+# Which service to name was corrected during the step 6 review, and the
+# distinction matters for a safety referral:
+#
+#   lawinen.at        the joint portal of the Austrian avalanche warning
+#                     services, with a map covering ALL federal states. In
+#                     Austria avalanche warning is organised per state, so this
+#                     is the correct nationwide entry point.
+#   avalanche.report  covers only Tyrol, South Tyrol and Trentino (the
+#                     Euregio service). Naming it as if it were nationwide
+#                     would send someone in Styria or Carinthia to a bulletin
+#                     that does not cover their mountain.
+#
+# So the default referral points at lawinen.at, and avalanche.report is added
+# only when the question is about a place in Tyrol, where it genuinely applies.
 AVALANCHE_REFERRAL: str = (
     "I can't answer avalanche questions - and I shouldn't, because getting that "
-    "wrong is dangerous. Please check the official avalanche bulletin for your "
-    "region: https://avalanche.report (the joint service of the Austrian "
-    "Lawinenwarndienst). I can still tell you the temperature, sky, wind or "
-    "precipitation forecast for a place if that helps your planning."
+    "wrong is dangerous. Avalanche warning in Austria is run per federal state; "
+    "the joint portal with a map for the whole country is https://lawinen.at. "
+    "I can still tell you the temperature, sky, wind or precipitation forecast "
+    "for a place if that helps your planning."
 )
+
+# Added to the referral when the message named a place in Tyrol.
+TYROL_REFERRAL_SUFFIX: str = (
+    " For Tyrol you can also use https://avalanche.report, the joint bulletin "
+    "for Tyrol, South Tyrol and Trentino."
+)
+
+# The federal state name as it appears in ``peakcast.slots.Place.state``
+# (and in data/places_at.csv), kept as a named constant so the guard does not
+# depend on a string literal matching the gazetteer by luck.
+TYROL_STATE: str = "Tirol"
 
 # --- Trigger patterns ------------------------------------------------------
 # Matched as substrings against the normalised message (lower-cased, accents
@@ -148,18 +171,40 @@ def mentions_avalanche(message: str) -> bool:
     return bool(_WORD_RE.search(normalised))
 
 
-def check_message(message: str) -> str | None:
+def referral_for(state: str | None = None) -> str:
+    """Build the referral text, adding the Tyrol bulletin where it applies.
+
+    Args:
+        state: Federal state of the place the user asked about, if one was
+            extracted. ``None`` when no place was named.
+
+    Returns:
+        The referral string.
+    """
+    if state == TYROL_STATE:
+        return AVALANCHE_REFERRAL + TYROL_REFERRAL_SUFFIX
+    return AVALANCHE_REFERRAL
+
+
+def check_message(message: str, state: str | None = None) -> str | None:
     """Screen a message before it reaches the intent classifier.
 
     This is the function the dialogue manager calls **first**, on every turn.
 
+    Note on ordering: the guard itself does not need a place to do its job, so
+    it never waits for one. The ``state`` argument only *refines* the referral,
+    which is why it is optional - if place extraction fails or is skipped, the
+    user still gets the correct nationwide portal.
+
     Args:
         message: Raw user message.
+        state: Federal state of the place named in the message, if the slot
+            extractor found one. Only used to add the Tyrol-specific bulletin.
 
     Returns:
-        The fixed referral string if the message must not be answered with a
+        The referral string if the message must not be answered with a
         forecast, otherwise ``None`` to mean "safe to classify normally".
     """
     if mentions_avalanche(message):
-        return AVALANCHE_REFERRAL
+        return referral_for(state)
     return None

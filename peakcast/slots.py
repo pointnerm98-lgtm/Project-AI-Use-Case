@@ -49,6 +49,10 @@ DATA_DIR: Path = PROJECT_ROOT / "data"
 # The compact gazetteer, built by scripts/build_places.py and committed.
 PLACES_CSV: Path = DATA_DIR / "places_at.csv"
 
+# Hand-curated short names that GeoNames does not carry, checked *before* the
+# gazetteer. See ``load_aliases`` for why this file exists at all.
+ALIASES_CSV: Path = DATA_DIR / "place_aliases.csv"
+
 # --- Time ------------------------------------------------------------------
 # All day words resolve against Austrian local time. Using the machine's local
 # timezone instead would silently shift "today" for anyone running the bot
@@ -395,11 +399,13 @@ class PlaceIndex:
     Attributes:
         by_name: Normalised name -> candidate places.
         by_collapsed: Space-free normalised name -> candidate places.
+        by_alias: Normalised curated alias -> the one place it names.
         places: Every place, for diagnostics.
     """
 
     by_name: dict[str, list[Place]]
     by_collapsed: dict[str, list[Place]]
+    by_alias: dict[str, Place]
     places: list[Place]
 
     def best(self, candidates: list[Place]) -> Place:
@@ -463,6 +469,42 @@ def load_places(csv_path: Path = PLACES_CSV) -> list[Place]:
     return places
 
 
+def load_aliases(csv_path: Path = ALIASES_CSV) -> list[dict[str, str]]:
+    """Read the hand-curated alias list.
+
+    Why a hand-written file is justified here, when the rest of the place data
+    is taken from an authoritative source: GeoNames stores official names, and
+    the names people *say* are sometimes shorter. The gap is small, closed and
+    not learnable from the dump:
+
+        "the Rax"        -> Raxalpe        (and "Rax" is a village of 615 in
+                                            Burgenland, which wins on
+                                            population)
+        "the Glockner"   -> Großglockner   (otherwise the mountain Glöcknerin)
+        "the Schmitten"  -> Schmittenhöhe  (otherwise a village 1 200 m lower)
+        "the Sonnblick"  -> Hoher Sonnblick (otherwise the Stubacher
+                                            Sonnblick, a different mountain)
+        "Emberger Alm"   -> Emberger Alpe  (GeoNames spells it "Alpe")
+
+    Each row is an alias plus the gazetteer name and federal state it points
+    at, so the alias can never introduce coordinates of its own - it only
+    selects an existing, verified row. Every entry carries a one-line reason,
+    because an undocumented alias list is indistinguishable from a list of
+    arbitrary preferences.
+
+    Args:
+        csv_path: Path to ``place_aliases.csv``.
+
+    Returns:
+        One dict per row. An empty list if the file is absent, so the matcher
+        degrades to plain gazetteer behaviour rather than failing.
+    """
+    if not csv_path.exists():
+        return []
+    with csv_path.open(encoding="utf-8", newline="") as handle:
+        return list(csv.DictReader(handle))
+
+
 @lru_cache(maxsize=1)
 def get_place_index(csv_path: Path = PLACES_CSV) -> PlaceIndex:
     """Build (and cache) the place lookup index.
@@ -499,7 +541,33 @@ def get_place_index(csv_path: Path = PLACES_CSV) -> PlaceIndex:
             if collapsed != key:
                 by_collapsed.setdefault(collapsed, []).append(place)
 
-    return PlaceIndex(by_name=by_name, by_collapsed=by_collapsed, places=places)
+    # --- Resolve the curated aliases against the gazetteer just built.
+    by_alias: dict[str, Place] = {}
+    for row in load_aliases():
+        target_name = row["geonames_name"].strip()
+        target_state = row["state"].strip()
+        matches = [
+            place
+            for place in by_name.get(normalise_name(target_name), [])
+            if place.name == target_name and place.state == target_state
+        ]
+        if not matches:
+            # Fail loudly. A typo in the alias file would otherwise silently do
+            # nothing, and the bot would keep answering for the wrong place
+            # with no sign that the alias was meant to fix it.
+            raise ValueError(
+                f"Alias {row['alias']!r} points at "
+                f"{target_name!r} ({target_state or 'no state'}), "
+                f"which is not in {csv_path.name}"
+            )
+        by_alias[normalise_name(row["alias"])] = matches[0]
+
+    return PlaceIndex(
+        by_name=by_name,
+        by_collapsed=by_collapsed,
+        by_alias=by_alias,
+        places=places,
+    )
 
 
 def _has_place_evidence(
@@ -588,6 +656,14 @@ def find_place(message: str, csv_path: Path = PLACES_CSV) -> Place | None:
     if not normalised_tokens:
         return None
 
+    # --- Stage 0: the curated aliases, checked before the gazetteer.
+    # They exist precisely because the gazetteer gets these wrong, so letting
+    # it answer first would defeat the purpose. Longest alias wins, so
+    # "the rax" is preferred over "rax".
+    alias_hit = _find_place_by_alias(index, raw_tokens, normalised_tokens)
+    if alias_hit is not None:
+        return alias_hit
+
     # Collect every window that matches, then take the longest. Scanning
     # left to right and returning the first hit is NOT the same thing, and
     # the difference is a real bug that this ordering fixes:
@@ -657,6 +733,51 @@ def find_place(message: str, csv_path: Path = PLACES_CSV) -> Place | None:
         feature_code=chosen.feature_code,
         matched_text=" ".join(raw_tokens[start : start + length]),
     )
+
+
+def _find_place_by_alias(
+    index: PlaceIndex, raw_tokens: list[str], normalised_tokens: list[str]
+) -> Place | None:
+    """Match a hand-curated short name, before the gazetteer is consulted.
+
+    Longest alias first, so ``"the rax"`` beats the single token ``"rax"``.
+    The match is exact against the normalised alias, with no fuzzy or partial
+    tolerance: these are deliberate, hand-checked mappings, and loosening them
+    would reintroduce the guesswork they exist to remove.
+
+    Args:
+        index: The place index, carrying the resolved aliases.
+        raw_tokens: Original tokens.
+        normalised_tokens: Normalised tokens.
+
+    Returns:
+        The aliased place with ``matched_text`` set to what the user typed, or
+        ``None``.
+    """
+    if not index.by_alias:
+        return None
+
+    longest_alias = max(len(alias.split()) for alias in index.by_alias)
+
+    for length in range(min(longest_alias, len(normalised_tokens)), 0, -1):
+        for start in range(len(normalised_tokens) - length + 1):
+            key = " ".join(normalised_tokens[start : start + length])
+            place = index.by_alias.get(key)
+            if place is None:
+                continue
+            return Place(
+                name=place.name,
+                state=place.state,
+                lat=place.lat,
+                lon=place.lon,
+                elevation=place.elevation,
+                population=place.population,
+                feature_code=place.feature_code,
+                # What the user typed, so the answer can use their wording.
+                matched_text=" ".join(raw_tokens[start : start + length]),
+            )
+
+    return None
 
 
 def _find_place_partial(

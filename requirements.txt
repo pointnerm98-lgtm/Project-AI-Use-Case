@@ -2,7 +2,7 @@
 #
 # Versions are pinned exactly (==) so the project can be rebuilt identically
 # on the reviewer's machine. Only the packages needed for the current step
-# are listed; Streamlit (UI) and requests (weather API) follow in a later step.
+# are listed; Streamlit (UI) follows in a later step.
 #
 # Install with:  pip install -r requirements.txt
 
@@ -10,4 +10,5 @@ scikit-learn==1.9.1   # intent classifier: TF-IDF vectorizer + logistic regressi
 pandas==3.1.0         # reading and inspecting the training/test CSV files
 joblib==1.6.0         # saving and loading the trained model to models/
 matplotlib==3.11.2    # confusion matrix plot for the evaluation report
-pytest==9.2.0         # unit tests for the safety guard and slot extraction
+requests==2.34.2      # Open-Meteo forecast client in peakcast/weather.py
+pytest==9.2.0         # unit tests for the safety guard, slots and weather
