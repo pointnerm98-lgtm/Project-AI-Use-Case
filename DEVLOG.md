@@ -995,3 +995,342 @@ referral and the out-of-range day being declined.
 - `precipitation_probability_max` is fetched but not yet used in any answer.
 - The dialogue manager still owes: guard first, remembering the last place, and
   ending the conversation after a goodbye or roughly ten answers.
+
+---
+
+## Step 7 — Dialogue manager and response generator: the bot works end-to-end (2026-11-05)
+
+### Small fix first — display name vs canonical name
+
+GeoNames' canonical name is sometimes not the name an Austrian user knows the
+place by, and answering with it reads as a *different mountain*:
+
+| user types | GeoNames canonical | what the bot now says |
+| --- | --- | --- |
+| Mittagskogel | **Kepa** (the Slovene name) | Mittagskogel |
+| Mölltaler Gletscher | **Wurtenkees** | Mölltaler Gletscher |
+| Soelden / Solden | Sölden | Sölden |
+
+`Place` now carries a `display_name` and a `shown` property; `name` stays the
+canonical form and is used for **resolution only** — gazetteer lookups, row
+comparison, the forecast cache key.
+
+The selection rule turned out to be simple once framed properly. All the
+spellings of a row that normalise to the same key are, by definition, the
+different ways of writing *the one name the user typed*. Among those:
+
+1. the canonical name, if it is one of them (so "Soelden" is answered as
+   *Sölden*, not echoed back);
+2. otherwise a spelling with diacritics (this is what rescues *Mittagskogel*,
+   whose row's canonical name does not normalise to what the user typed);
+3. otherwise the longest, as a stable tie-break.
+
+What falls through to the canonical name is exactly what should: a **typo**
+("Innsbruk" → Innsbruck, not the user's mistake), an **alias** ("the Glockner"
+is not a spelling of anything → Großglockner), and a **shortened compound**
+("Bischling" → Bischlinghöhe).
+
+Also added `Place.ambiguous`, set when more than one *distinct* place answers
+to the name, so the response generator can name the federal state for
+"See", "Annaberg" or "Mittagskogel" without appending it to every answer.
+
+All four match stages (alias, exact, partial, fuzzy) now build their result
+through **one** `_resolved()` helper, so they cannot drift apart on how the
+display name is chosen or when a name counts as ambiguous.
+
+### 7a — Dialogue manager
+
+`peakcast/dialogue.py`. `Bot.respond(state, message)` runs one turn:
+
+    safety guard → intent classifier → slot extraction
+                 → context handling → weather service → response generator
+
+**Why the guard is still first**, restated because this is the step where it
+could quietly have been moved: the classifier labels "avalanche risk after the
+fresh snow" as `ask_precipitation` at p = 0.62, above the 0.35 threshold, and
+the *better* model was the more confidently wrong one. A guard placed after the
+classifier would only ever see messages the model had already mislabelled —
+exactly the set it cannot be trusted on. It therefore runs on the raw message
+and never waits for the NLU. The extracted place is used **only** to pick the
+regional bulletin, and falls back to the remembered place, so
+*"and what about the avalanche risk?"* after talking about a Tyrolean peak
+still offers avalanche.report.
+
+#### Context handling — the core of the step, and the hard part
+
+A pipeline can answer "how windy is it on the Hochkönig tomorrow". It cannot
+answer *"and tomorrow?"*, which contains no weather word, no place, and
+nothing for a classifier to work with. Four cases:
+
+1. **An answer to an ask-back.** The pending intent resumes, so the user does
+   not repeat the question.
+2. **A confident weather question**, taken at face value; a missing place falls
+   back to the remembered one.
+3. **A follow-up with no weather word**, which reuses the remembered intent
+   with whatever new slot the message carries.
+4. **Nothing usable** → the help reply.
+
+Three decisions inside that are worth recording, because each was a measured
+problem rather than a design preference.
+
+**"What about Kaprun?" was being declined as out of scope.** Measured:
+
+| message | intent | p |
+| --- | --- | --- |
+| `what about Kaprun?` | `out_of_scope` | **0.88** |
+| `can you book me a hotel in Innsbruck` | `out_of_scope` | **0.91** |
+
+Both are confident `out_of_scope` **with a place in them**, so confidence
+cannot separate them — and the first is one of the follow-ups the step is
+supposed to support. What does separate them: the follow-up is *nothing but a
+slot*. Strip out the place and day it names and only filler remains, where the
+hotel question still says "book" and "hotel". `is_bare_slot_followup()`
+implements exactly that, and `out_of_scope` is believed unless the message is a
+bare slot **and** a weather conversation is already running. The filler list is
+kept deliberately short: every word added to it is a word the bot stops
+treating as content.
+
+**"And in the afternoon?" needed its own slot flag.** `DaySlot` gained
+`part_only`, set only by the `in the <part>` patterns. The distinction is real:
+*"this afternoon"* means today whatever came before, while *"in the afternoon"*
+leaves the day open and should inherit the day under discussion. Resolving the
+bare form to today would silently answer about the wrong day halfway through a
+conversation about tomorrow.
+
+**A bug the inheritance introduced, caught by a stray hint.** The first version
+re-ran `find_day(matched_text, reference=state.last_day.target_date)`, which
+looks tidy and is wrong: it resolves "in the afternoon" to offset 0 *relative
+to that date*, producing a `DaySlot` whose `target_date` was tomorrow and whose
+`offset_days` was 0. The live path keys off the date and the offline dataset
+keys off the offset, so the two answered for **different days** — which showed
+up as an inversion-fog hint appearing on a clear afternoon. The inherited day
+is now built explicitly, keeping `offset_days` relative to today, and there is
+a test asserting the two stay in step.
+
+**Day inheritance for ordinary questions.** A weather question with no day word
+at all also inherits the remembered day: after "how windy on the Hochkönig
+tomorrow", *"will it snow there"* means tomorrow, which is how people talk. The
+risk is answering about Saturday when the user meant now; it is accepted
+because an explicit "today" or "right now" still overrides it (both set
+`is_default=False`), and **every answer names the day it used**, so a wrong
+inheritance is visible and correctable rather than silent.
+
+#### The conversation limit
+
+Every reply goes through one `_finish_turn()`, which is what makes the limit
+reliable — there is a single place that increments the counter, so no path can
+answer without being counted, including greetings, refusals and help replies.
+That matters for the case the limit most needs to cover: a conversation of
+nothing but unanswerable messages would otherwise never end. The closing is
+**appended to the tenth answer** rather than sent as an eleventh message, so
+the user still gets the answer they asked for.
+
+#### The step 1 to-do, finally closed
+
+`ensure_model()` trains the model on first start if the file is missing.
+`models/*.joblib` is git-ignored because it is a build artefact, so a fresh
+checkout — or the submitted ZIP — has none, and "run this script first" is not
+an acceptable first experience for the tutor.
+
+It rebuilds the iteration-1 pipeline from **named constants** (`ITER1_C = 10.0`,
+`ITER1_CHAR_NGRAM_RANGE = (2, 4)`) rather than re-running the 75-fit grid
+search to rediscover numbers that are already known. Verified: the
+auto-trained model reproduces the committed metrics exactly — test accuracy
+**0.8125**, macro F1 0.81. `scripts/optimize_intent.py` remains the *source*
+of those values and would reveal a change.
+
+### 7b — Response generator
+
+`peakcast/responses.py`. Templates, not generation — and that is not a
+compromise. The answers must contain exact values with units, and a template
+guarantees the number in the sentence is the number the service returned. Each
+intent has three phrasings, picked with an **injected** `random.Random`, so the
+tests are deterministic without monkeypatching anything.
+
+**A wording bug worth recording: "Wind in Großglockner".** You are *in*
+Innsbruck but *on* the Großglockner, and a bot that gets this wrong sounds like
+it has never been outside. English picks the preposition from what kind of
+place it is — and the gazetteer already records exactly that in the GeoNames
+feature code, so the fix cost nothing: `PPL*` → "in", `MT`/`PK`/`GLCR` →
+"on the", `PASS`/`HUT`/`LK` → "at the", `VAL`/`MTS` → "in the".
+
+**Hints are rules with named thresholds, marked as heuristics.** Every constant
+carries that marking in its comment, because a number in a safety-adjacent
+sentence invites being read as authoritative. Gusts (25 / 40 km/h — the
+concept's named decision variable for paragliders), fresh snow (1 / 15 cm),
+thunderstorm WMO codes, fog, freezing (0 / −10 °C), heat (25 °C).
+
+Two decisions about hints:
+
+- **Ordered by how much they should change someone's plan**, and only **one** is
+  appended. Two is a lecture, and the ordering means the one that survives is
+  the most consequential: thunderstorms outrank strong gusts, which outrank
+  deep cold.
+- **Substantial fresh snow points at the avalanche bulletin.** The one hint
+  that defers to the real service, in the one situation where it matters most.
+
+**Precipitation ordering closes the step 2 decision.** Rain and snow
+deliberately share one intent, because the same sentence means rain in July and
+snow in January — the distinction is seasonal, not linguistic. The ordering was
+deferred to this module and is now implemented: snowfall first when the user's
+own message mentions snow, rainfall first otherwise. A day with no measurable
+precipitation is called **"dry"**, not "0 mm of rain", which reads as a
+measurement; but "dry, though there is a 60 % chance of showers" is a different
+plan from "dry" and is said that way.
+
+**The offline disclosure is graded.** A fictional forecast may never read as a
+real one — but repeating the same paragraph on all ten answers turns it into
+wallpaper a reader skips, which defeats the point. The full note is used the
+first time and a short tag afterwards, tracked on the conversation state.
+
+### 7c — Testing
+
+**274 tests, no network** (276 with `--live`). New: 39 dialogue, 46 response, 8
+display-name.
+
+The dialogue tests are the ones that could not be written before: every earlier
+suite checks one message, and the behaviour that makes this a bot — remembering
+a place, continuing a question, asking back and resuming — only exists across
+turns. They all run with `allow_live=False` and a fixed `today`, so "tomorrow"
+is the same date on every machine on every day.
+
+**A live test broke, and for an instructive reason.** `test_live_api_still_
+returns_what_we_parse` asked the real API for the fixed constant
+`TODAY = 2026-11-04`. It passed on the day it was written and failed the next
+morning, because a forecast service does not serve yesterday. The mocked tests
+are right to use a fixed date — their fake payloads are built around the same
+constant — but a *live* test has to use the real clock. Fixed with a separate
+`a_real_day()` helper and the reason written next to it. This is the second
+time a test fixture, rather than the code, has been the bug; both times the
+fixture could not distinguish "the code is wrong" from "the fixture is wrong",
+which is the property to watch for.
+
+**One test pins a defect on purpose.** "how many people live in Linz" is
+labelled `ask_temperature` at p = 0.48 and "how high is the Dachstein" at
+p = 0.62 — both recorded as errors back in step 3, where the model latched onto
+the quantity phrasing. The dialogue manager cannot second-guess a confident
+classifier, and writing a rule for these two sentences would be fitting the
+test set. So `test_known_limitation_quantity_questions_leak_to_a_forecast`
+asserts the *current, wrong* behaviour, with a message telling the next person
+to delete it if a later data iteration fixes the classifier. A known defect
+that fails loudly when fixed is better than one that passes unnoticed.
+
+### Example conversations
+
+All three exactly as `scripts/chat_cli.py` produced them.
+
+**1 — Follow-ups (live, `--seed 17`).** Neither follow-up contains a weather
+word; the day and then the place change under a remembered intent.
+
+```
+You: How windy is it on the Hochkoenig today?
+
+PeakCast: Today on the Hochkönig expect 13 km/h of wind and gusts to 23
+          km/h. Around or below freezing, so expect icy patches early and
+          late.
+
+You: And tomorrow?
+
+PeakCast: Wind on the Hochkönig tomorrow is around 14 km/h, with gusts up to
+          29 km/h. Gusts reach 29 km/h, worth checking before you launch.
+
+You: What about Kaprun?
+
+PeakCast: Wind in Kaprun tomorrow is around 3 km/h, with gusts up to 6 km/h.
+
+You: And in the afternoon?
+
+PeakCast: Wind in Kaprun tomorrow in the afternoon is around 2 km/h, with
+          gusts up to 5 km/h.
+
+You: thanks, bye
+
+PeakCast: Take care up there - have a good tour!
+```
+
+**2 — Ask-back, safety guard, forecast horizon (live, `--seed 5`).**
+
+```
+You: hi
+
+PeakCast: Hi! I'm PeakCast. I can tell you the temperature, sky, wind or
+          precipitation forecast for places in Austria - towns, peaks and
+          huts. Try: "How windy is it on the Hochkönig tomorrow?"
+
+You: How cold is it tomorrow?
+
+PeakCast: Which place do you mean?
+
+You: Soelden
+
+PeakCast: Tomorrow in Sölden it should be between 1.9 °C and 12.1 °C.
+
+You: What is the avalanche risk there?
+
+PeakCast: I can't answer avalanche questions - and I shouldn't, because
+          getting that wrong is dangerous. Avalanche warning in Austria is
+          run per federal state; the joint portal with a map for the whole
+          country is https://lawinen.at. I can still tell you the
+          temperature, sky, wind or precipitation forecast for a place if
+          that helps your planning. For Tyrol you can also use
+          https://avalanche.report, the joint bulletin for Tyrol, South
+          Tyrol and Trentino.
+
+You: How about next Friday?
+
+PeakCast: I can only forecast about a week ahead, so I can't tell you about
+          Friday.
+```
+
+Three things in one screen: the ask-back keeps the day the user already gave
+(the answer is for *tomorrow*, not today); the guard reads the remembered place
+to add the Tyrol bulletin; and the horizon is declined in words rather than
+answered with invented numbers.
+
+**3 — Offline disclosure and a real refusal (`--offline --seed 8`).**
+
+```
+You: Will it snow on the Schmitten in 3 days?
+
+PeakCast: Schmittenhöhe on Sunday: 10.3 cm of fresh snow (90 % chance).
+          Gusts to 102 km/h are strong - not flying weather, and exposed
+          ridges will be unpleasant. Heads-up: the live forecast service is
+          unreachable right now, so these are sample values from the offline
+          demo dataset, not a real forecast.
+
+You: And the wind?
+
+PeakCast: Wind on the Schmittenhöhe on Sunday is around 50 km/h, with gusts
+          up to 102 km/h. Gusts to 102 km/h are strong - not flying weather,
+          and exposed ridges will be unpleasant. (Sample data, not a real
+          forecast.)
+
+You: Can you book me a hotel in Innsbruck?
+
+PeakCast: That's outside what I do - I only answer weather questions for
+          places in Austria. Ask me about temperature, sky, wind or
+          precipitation and I'm happy to help.
+```
+
+Note "the Schmitten" resolving through the curated alias to the Schmittenhöhe,
+snow reported first because the question said "snow", the full disclosure
+followed by the short tag, and the hotel question still being refused despite
+naming a place — the counterpart to "What about Kaprun?" in conversation 1.
+
+### Open points for the next step
+
+- The Streamlit UI is all that remains of the planned architecture. It needs:
+  `Bot` held in session state, `DialogueState` per session, the
+  `ensure_model()` startup path, and a visible marker when
+  `WeatherReport.source` is offline.
+- `precipitation_probability_max` is fetched and used in the precipitation
+  phrase, but not in any hint. A "70 % chance, take the jacket" hint would be
+  cheap.
+- The `out_of_scope` quantity leak above is the one classifier error now
+  visible in normal use. The honest fix is more `out_of_scope` training
+  sentences in that phrasing style, collected from real test conversations -
+  **not** from `reports/misclassified_*.csv`, which would leak the test set.
+  The chat CLI is now the tool that makes collecting them possible.
+- `Place.matched_text` is kept but the response generator does not use it; the
+  display name covers every case met so far. Worth deleting if nothing needs
+  it by the end.

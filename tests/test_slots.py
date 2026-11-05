@@ -25,6 +25,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from peakcast.slots import (
     MAX_DAY_OFFSET,
+    Place,
     PART_AFTERNOON,
     PART_EVENING,
     PART_MORNING,
@@ -250,6 +251,87 @@ def test_hohe_wand_resolves_after_adding_cliffs() -> None:
     assert place is not None
     assert place.name == "Hohe Wand"
     assert place.state == "Niederösterreich"
+
+
+# --- Place: display name vs canonical name --------------------------------
+
+
+@pytest.mark.parametrize(
+    "message, shown, canonical",
+    [
+        # The cases the mechanism exists for: GeoNames' canonical name is not
+        # the one an Austrian user knows the place by.
+        ("clear conditions on the Mittagskogel tonight", "Mittagskogel", "Kepa"),
+        ("snow at the Moelltaler Gletscher", "Mölltaler Gletscher", "Wurtenkees"),
+        # The ASCII spelling a non-German keyboard produces must be answered
+        # with the proper German form, not echoed back.
+        ("weather in Soelden", "Sölden", "Sölden"),
+        ("weather in Solden", "Sölden", "Sölden"),
+        ("Kitzbuehel snow", "Kitzbühel", "Kitzbühel"),
+    ],
+)
+def test_display_name_prefers_the_name_the_user_knows(
+    message: str, shown: str, canonical: str
+) -> None:
+    """The answer must name the place the way the user would.
+
+    Resolution still uses the canonical GeoNames name - that is what keys the
+    gazetteer and the forecast cache - but answering "Kepa" for the
+    Mittagskogel would read as a different mountain.
+    """
+    place = find_place(message)
+    assert place is not None, f"no place found in {message!r}"
+    assert place.shown == shown
+    assert place.name == canonical
+
+
+@pytest.mark.parametrize(
+    "message, expected",
+    [
+        # A typo is not a name: fall back to the canonical spelling rather
+        # than echoing the user's mistake.
+        ("temperature in Innsbruk", "Innsbruck"),
+        # An alias is not a spelling of anything either.
+        ("gusts on the Glockner", "Großglockner"),
+        ("snow at the Schmitten", "Schmittenhöhe"),
+        # A shortened compound falls back to the full official name.
+        ("cloud base at the Bischling", "Bischlinghöhe"),
+    ],
+)
+def test_display_name_falls_back_to_the_canonical_name(
+    message: str, expected: str
+) -> None:
+    """When the user's wording is not a real spelling, use the official name."""
+    place = find_place(message)
+    assert place is not None, f"no place found in {message!r}"
+    assert place.shown == expected
+
+
+def test_ambiguous_names_are_flagged_for_the_answer() -> None:
+    """Several real places answer to some names, and the answer must say which.
+
+    The flag drives one thing: whether the response generator appends the
+    federal state. Doing that on every answer would be noise.
+    """
+    ambiguous = find_place("weather in See")
+    assert ambiguous is not None and ambiguous.ambiguous is True
+
+    unique = find_place("weather in Innsbruck")
+    assert unique is not None and unique.ambiguous is False
+
+
+def test_a_hand_built_place_still_renders() -> None:
+    """``shown`` must degrade to the canonical name.
+
+    The weather and response tests build ``Place`` objects directly; they
+    should not have to set a display name to get a sensible answer.
+    """
+    place = Place(
+        name="Testberg", state="Tirol", lat=47.0, lon=11.0, elevation=2000,
+        population=0, feature_code="MT",
+    )
+    assert place.shown == "Testberg"
+    assert place.label == "Testberg, Tirol"
 
 
 def test_language_name_is_not_read_as_a_place() -> None:

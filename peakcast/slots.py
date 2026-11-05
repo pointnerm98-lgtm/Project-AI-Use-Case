@@ -251,7 +251,17 @@ class Place:
     """One place from the gazetteer.
 
     Attributes:
-        name: Canonical name, as the bot should echo it back.
+        name: Canonical GeoNames name. Used for **resolution only** - looking
+            the place up, comparing rows, keying the cache. It is not
+            necessarily what a user should be shown; see ``display_name``.
+        display_name: The name to put in an answer. GeoNames' canonical name
+            is sometimes not the one an Austrian user knows the place by:
+            the Mittagskogel is filed under its Slovene name *Kepa*, and the
+            Mölltaler Gletscher under *Wurtenkees*. Answering "Kepa" would
+            read as a different mountain. So the display name is the gazetteer
+            spelling that matches what the user actually typed, preferring the
+            German form; it falls back to ``name`` when the user's wording was
+            a typo, an abbreviation or an alias (see ``choose_display_name``).
         state: Austrian federal state, so the answer can say which of several
             same-named places was used. Empty for features that do not lie in
             one single state (mountain ranges and border peaks such as the
@@ -262,9 +272,12 @@ class Place:
         population: Inhabitants; 0 for terrain features.
         feature_code: GeoNames feature code (``PPL``, ``MT``, ``PK``, ...).
         matched_text: The substring of the user message that matched.
-        fuzzy: ``True`` if the match needed typo tolerance rather than being
-            exact. The dialogue manager can use this to confirm back
-            ("I assumed you meant Innsbruck").
+        fuzzy: ``True`` if the match needed typo tolerance or a partial name
+            rather than being exact. The dialogue manager uses this to confirm
+            back ("I assumed you meant Innsbruck").
+        ambiguous: ``True`` if more than one distinct place shared the name the
+            user typed, so the answer should name the federal state to show
+            which one was used.
     """
 
     name: str
@@ -276,15 +289,27 @@ class Place:
     feature_code: str
     matched_text: str = ""
     fuzzy: bool = False
+    display_name: str = ""
+    ambiguous: bool = False
+
+    @property
+    def shown(self) -> str:
+        """Return the name to show the user.
+
+        Falls back to the canonical name, so a ``Place`` built by hand (as the
+        tests do) still renders sensibly without setting ``display_name``.
+        """
+        return self.display_name or self.name
 
     @property
     def label(self) -> str:
         """Return ``"Name, State"``, or just the name if the state is unknown.
 
-        Used in the answer sentence so the user can tell which of several
-        same-named places the forecast is for.
+        Used where the place has to be fully identified - logs, the CLI, the
+        ask-back. The response generator names the state only when the name
+        was ambiguous, which is what ``ambiguous`` is for.
         """
-        return f"{self.name}, {self.state}" if self.state else self.name
+        return f"{self.shown}, {self.state}" if self.state else self.shown
 
 
 @dataclass(frozen=True)
@@ -299,6 +324,17 @@ class DaySlot:
         matched_text: The phrase that produced this, or ``""`` for the default.
         is_default: ``True`` if no day word was found and today was assumed.
         in_range: ``False`` if the date lies outside the forecast horizon.
+        part_only: ``True`` if the phrase named a part of the day **without
+            saying which day** - "in the afternoon", as opposed to "this
+            afternoon" or "tomorrow afternoon", which are explicit about the
+            day and leave this ``False``.
+
+            The distinction exists for one job, in the dialogue manager: a
+            follow-up like *"and in the afternoon?"* should inherit the day
+            from the previous question, while *"this afternoon"* means today
+            whatever came before. Resolving the bare form to today would
+            silently answer about the wrong day halfway through a conversation
+            about tomorrow.
     """
 
     target_date: date
@@ -307,6 +343,7 @@ class DaySlot:
     matched_text: str = ""
     is_default: bool = False
     in_range: bool = True
+    part_only: bool = False
 
 
 @dataclass(frozen=True)
@@ -400,12 +437,18 @@ class PlaceIndex:
         by_name: Normalised name -> candidate places.
         by_collapsed: Space-free normalised name -> candidate places.
         by_alias: Normalised curated alias -> the one place it names.
+        display: ``(normalised key, canonical name)`` -> the spelling to show
+            the user for that key. This is what lets "Mittagskogel" be
+            answered as *Mittagskogel* rather than as GeoNames' canonical
+            *Kepa*: the pair is keyed by what the user typed, so the same row
+            can be shown under whichever of its names was asked for.
         places: Every place, for diagnostics.
     """
 
     by_name: dict[str, list[Place]]
     by_collapsed: dict[str, list[Place]]
     by_alias: dict[str, Place]
+    display: dict[tuple[str, str], str]
     places: list[Place]
 
     def best(self, candidates: list[Place]) -> Place:
@@ -469,6 +512,39 @@ def load_places(csv_path: Path = PLACES_CSV) -> list[Place]:
     return places
 
 
+def choose_display_name(spellings: list[str], canonical: str) -> str:
+    """Pick the spelling to show the user, among those the user could have meant.
+
+    All candidates passed in normalise to the same key, i.e. they are the
+    different ways of writing the one name the user typed. The order of
+    preference:
+
+    1. **The canonical name**, if it is one of them. "Soelden" and "Sölden"
+       both normalise to ``solden``, and GeoNames' canonical spelling
+       *Sölden* is the right one to print.
+    2. **A spelling with diacritics**, otherwise. This is what rescues the
+       cases the whole mechanism exists for: the Mittagskogel is filed under
+       *Kepa*, so the canonical name does not normalise to what the user
+       typed, and among the remaining spellings the accented German form is
+       the one an Austrian user recognises.
+    3. The longest remaining spelling, as a stable tie-break - longer usually
+       means the fuller, less abbreviated form.
+
+    Args:
+        spellings: Candidate spellings, all normalising to the same key.
+        canonical: The row's canonical GeoNames name.
+
+    Returns:
+        The spelling to display.
+    """
+    if canonical in spellings:
+        return canonical
+
+    accented = [s for s in spellings if any(ord(ch) > 127 for ch in s)]
+    pool = accented or spellings
+    return max(pool, key=lambda s: (len(s), s))
+
+
 def load_aliases(csv_path: Path = ALIASES_CSV) -> list[dict[str, str]]:
     """Read the hand-curated alias list.
 
@@ -520,6 +596,7 @@ def get_place_index(csv_path: Path = PLACES_CSV) -> PlaceIndex:
     """
     by_name: dict[str, list[Place]] = {}
     by_collapsed: dict[str, list[Place]] = {}
+    display: dict[tuple[str, str], str] = {}
     places = load_places(csv_path)
 
     with csv_path.open(encoding="utf-8", newline="") as handle:
@@ -530,16 +607,28 @@ def get_place_index(csv_path: Path = PLACES_CSV) -> PlaceIndex:
         spellings = {place.name, row["ascii_name"]}
         spellings.update(a for a in row["alt_names"].split("|") if a)
 
+        # Group this row's spellings by the key they normalise to, so that the
+        # display name can be chosen per key: the same row is shown as
+        # "Mittagskogel" or as "Kepa" depending on which name was asked for.
+        by_key: dict[str, list[str]] = {}
         for spelling in spellings:
             key = normalise_name(spelling)
-            if not key:
-                continue
+            if key:
+                by_key.setdefault(key, []).append(spelling)
+
+        for key, key_spellings in by_key.items():
             by_name.setdefault(key, []).append(place)
+            display[(key, place.name)] = choose_display_name(
+                key_spellings, place.name
+            )
             collapsed = _collapse(key)
             # Only index the collapsed form when it differs, to keep the
             # second dict small.
             if collapsed != key:
                 by_collapsed.setdefault(collapsed, []).append(place)
+                display.setdefault(
+                    (collapsed, place.name), display[(key, place.name)]
+                )
 
     # --- Resolve the curated aliases against the gazetteer just built.
     by_alias: dict[str, Place] = {}
@@ -566,7 +655,53 @@ def get_place_index(csv_path: Path = PLACES_CSV) -> PlaceIndex:
         by_name=by_name,
         by_collapsed=by_collapsed,
         by_alias=by_alias,
+        display=display,
         places=places,
+    )
+
+
+def _resolved(
+    index: PlaceIndex,
+    candidates: list[Place],
+    key: str,
+    matched_text: str,
+    fuzzy: bool = False,
+) -> Place:
+    """Build the ``Place`` a match returns.
+
+    One construction point for all four match stages (alias, exact, partial,
+    fuzzy), so they cannot drift apart on how the display name is chosen or
+    when a name counts as ambiguous.
+
+    Args:
+        index: The place index, which holds the display-name table.
+        candidates: The places sharing the matched name.
+        key: The normalised key that matched, used to look the display name up.
+        matched_text: What the user actually typed.
+        fuzzy: Whether the match needed typo tolerance or a partial name.
+
+    Returns:
+        The chosen place, carrying its display name and ambiguity flag.
+    """
+    chosen = index.best(candidates)
+
+    # "Ambiguous" means several *distinct* places answer to this name, so the
+    # answer should say which federal state it used. Rows that are duplicates
+    # of one another (GeoNames lists some places twice) do not count.
+    distinct = {(p.name, p.state, round(p.lat, 2), round(p.lon, 2)) for p in candidates}
+
+    return Place(
+        name=chosen.name,
+        state=chosen.state,
+        lat=chosen.lat,
+        lon=chosen.lon,
+        elevation=chosen.elevation,
+        population=chosen.population,
+        feature_code=chosen.feature_code,
+        matched_text=matched_text,
+        fuzzy=fuzzy,
+        display_name=index.display.get((key, chosen.name), chosen.name),
+        ambiguous=len(distinct) > 1,
     )
 
 
@@ -675,7 +810,9 @@ def find_place(message: str, csv_path: Path = PLACES_CSV) -> Place | None:
     # village of Forst. Leftmost-first returned that and never looked at the
     # four-token "st anton am arlberg" further right. Longest-wins prefers the
     # more specific name, and the leftmost one only breaks a tie.
-    best_match: tuple[int, int, list[Place]] | None = None  # (length, -start, places)
+    # (length, -start, candidates, matched key); the key is carried along so
+    # the display name can be looked up for the spelling the user actually used.
+    best_match: tuple[int, int, list[Place], str] | None = None
 
     for start in range(len(normalised_tokens)):
         longest = min(MAX_NAME_TOKENS, len(normalised_tokens) - start)
@@ -711,7 +848,10 @@ def find_place(message: str, csv_path: Path = PLACES_CSV) -> Place | None:
                 best_match[0],
                 best_match[1],
             ):
-                best_match = (length, -start, candidates)
+                # Record the key that actually hit: the space-free fallback
+                # matches under `collapsed`, not under `key`.
+                matched_key = key if key in index.by_name else _collapse(key)
+                best_match = (length, -start, candidates, matched_key)
             # No shorter window starting here can beat this one.
             break
 
@@ -720,18 +860,10 @@ def find_place(message: str, csv_path: Path = PLACES_CSV) -> Place | None:
             index, raw_tokens, normalised_tokens
         ) or _find_place_fuzzy(index, raw_tokens, normalised_tokens)
 
-    length, negative_start, candidates = best_match
+    length, negative_start, candidates, key = best_match
     start = -negative_start
-    chosen = index.best(candidates)
-    return Place(
-        name=chosen.name,
-        state=chosen.state,
-        lat=chosen.lat,
-        lon=chosen.lon,
-        elevation=chosen.elevation,
-        population=chosen.population,
-        feature_code=chosen.feature_code,
-        matched_text=" ".join(raw_tokens[start : start + length]),
+    return _resolved(
+        index, candidates, key, " ".join(raw_tokens[start : start + length])
     )
 
 
@@ -765,16 +897,14 @@ def _find_place_by_alias(
             place = index.by_alias.get(key)
             if place is None:
                 continue
-            return Place(
-                name=place.name,
-                state=place.state,
-                lat=place.lat,
-                lon=place.lon,
-                elevation=place.elevation,
-                population=place.population,
-                feature_code=place.feature_code,
-                # What the user typed, so the answer can use their wording.
-                matched_text=" ".join(raw_tokens[start : start + length]),
+            # The alias is resolved against the place's own canonical key, not
+            # against the alias text: "the Glockner" is not a spelling of
+            # anything, so the answer should say "Großglockner".
+            return _resolved(
+                index,
+                [place],
+                normalise_name(place.name),
+                " ".join(raw_tokens[start : start + length]),
             )
 
     return None
@@ -825,16 +955,11 @@ def _find_place_partial(
             continue
 
         shortest = min(hits, key=len)
-        chosen = index.best(index.by_name[shortest])
-        return Place(
-            name=chosen.name,
-            state=chosen.state,
-            lat=chosen.lat,
-            lon=chosen.lon,
-            elevation=chosen.elevation,
-            population=chosen.population,
-            feature_code=chosen.feature_code,
-            matched_text=raw_tokens[position],
+        return _resolved(
+            index,
+            index.by_name[shortest],
+            shortest,
+            raw_tokens[position],
             fuzzy=True,
         )
 
@@ -873,17 +998,11 @@ def _find_place_fuzzy(
         if not matches:
             continue
 
-        candidates = index.by_name[matches[0]]
-        chosen = index.best(candidates)
-        return Place(
-            name=chosen.name,
-            state=chosen.state,
-            lat=chosen.lat,
-            lon=chosen.lon,
-            elevation=chosen.elevation,
-            population=chosen.population,
-            feature_code=chosen.feature_code,
-            matched_text=raw_tokens[position],
+        return _resolved(
+            index,
+            index.by_name[matches[0]],
+            matches[0],
+            raw_tokens[position],
             fuzzy=True,
         )
 
@@ -897,38 +1016,43 @@ def _find_place_fuzzy(
 #
 # Each entry is (regex, offset_days, part_of_day). An offset of None means the
 # handler computes it (weekdays, "in N days").
-_DAY_PATTERNS: list[tuple[str, int | None, str | None]] = [
+_DAY_PATTERNS: list[tuple[str, int | None, str | None, bool]] = [
     # --- explicit two- and three-word phrases first
-    (r"\bday after tomorrow\b", 2, None),
-    (r"\bthe day after tomorrow\b", 2, None),
-    (r"\btomorrow morning\b", 1, PART_MORNING),
-    (r"\btomorrow afternoon\b", 1, PART_AFTERNOON),
-    (r"\btomorrow evening\b", 1, PART_EVENING),
-    (r"\btomorrow night\b", 1, PART_NIGHT),
-    (r"\bthis morning\b", 0, PART_MORNING),
-    (r"\bthis afternoon\b", 0, PART_AFTERNOON),
-    (r"\bthis evening\b", 0, PART_EVENING),
-    (r"\bthis night\b", 0, PART_NIGHT),
+    (r"\bday after tomorrow\b", 2, None, False),
+    (r"\bthe day after tomorrow\b", 2, None, False),
+    (r"\btomorrow morning\b", 1, PART_MORNING, False),
+    (r"\btomorrow afternoon\b", 1, PART_AFTERNOON, False),
+    (r"\btomorrow evening\b", 1, PART_EVENING, False),
+    (r"\btomorrow night\b", 1, PART_NIGHT, False),
+    (r"\bthis morning\b", 0, PART_MORNING, False),
+    (r"\bthis afternoon\b", 0, PART_AFTERNOON, False),
+    (r"\bthis evening\b", 0, PART_EVENING, False),
+    (r"\bthis night\b", 0, PART_NIGHT, False),
     # "tonight" is today plus a night flag, not a separate day: a user asking
     # at 18:00 about "tonight" means the hours still ahead of them today.
-    (r"\btonight\b", 0, PART_NIGHT),
-    (r"\bovernight\b", 0, PART_NIGHT),
+    (r"\btonight\b", 0, PART_NIGHT, False),
+    (r"\bovernight\b", 0, PART_NIGHT, False),
     # --- single words
-    (r"\btomorrow\b", 1, None),
-    (r"\btomorow\b", 1, None),      # typo present in the intent training data
-    (r"\btmrw\b", 1, None),
-    (r"\btoday\b", 0, None),
-    (r"\bright now\b", 0, None),
-    (r"\bnow\b", 0, None),
-    (r"\bat the moment\b", 0, None),
-    (r"\bcurrently\b", 0, None),
-    # --- "in the <part>", which means today's remaining hours.
+    (r"\btomorrow\b", 1, None, False),
+    (r"\btomorow\b", 1, None, False),   # typo present in the training data
+    (r"\btmrw\b", 1, None, False),
+    (r"\btoday\b", 0, None, False),
+    (r"\bright now\b", 0, None, False),
+    (r"\bnow\b", 0, None, False),
+    (r"\bat the moment\b", 0, None, False),
+    (r"\bcurrently\b", 0, None, False),
+    # --- "in the <part>": a part of the day with no day named. These are the
+    #     only part_only=True patterns, because they are the only ones that
+    #     leave the day open. On their own they mean today; inside a
+    #     conversation the dialogue manager reads them as the remembered day,
+    #     which is what makes "and in the afternoon?" work as a follow-up.
+    #
     #     Bare "morning"/"evening" are deliberately NOT patterns: "good
     #     morning" and "have a good evening" are greetings, and the intent
     #     classifier already has `greet`/`goodbye` for them.
-    (r"\bin the morning\b", 0, PART_MORNING),
-    (r"\bin the afternoon\b", 0, PART_AFTERNOON),
-    (r"\bin the evening\b", 0, PART_EVENING),
+    (r"\bin the morning\b", 0, PART_MORNING, True),
+    (r"\bin the afternoon\b", 0, PART_AFTERNOON, True),
+    (r"\bin the evening\b", 0, PART_EVENING, True),
 ]
 
 # "this weekend" -> Saturday. A weekend spans two days and the forecast is
@@ -963,7 +1087,11 @@ def today_in_vienna() -> date:
 
 
 def _make_day(
-    offset: int, part_of_day: str | None, matched_text: str, reference: date
+    offset: int,
+    part_of_day: str | None,
+    matched_text: str,
+    reference: date,
+    part_only: bool = False,
 ) -> DaySlot:
     """Build a ``DaySlot`` and flag it if it is outside the forecast horizon.
 
@@ -972,6 +1100,8 @@ def _make_day(
         part_of_day: Part-of-day flag or ``None``.
         matched_text: The phrase that produced this.
         reference: The date that counts as "today".
+        part_only: Whether the phrase named a part of the day but not which
+            day; see ``DaySlot.part_only``.
 
     Returns:
         The day slot, with ``in_range=False`` if the bot cannot forecast it.
@@ -982,6 +1112,7 @@ def _make_day(
         part_of_day=part_of_day,
         matched_text=matched_text,
         in_range=0 <= offset <= MAX_DAY_OFFSET,
+        part_only=part_only,
     )
 
 
@@ -1016,10 +1147,12 @@ def find_day(message: str, reference: date | None = None) -> DaySlot:
     )
 
     # 1. Fixed phrases. Longest first by construction of the list.
-    for pattern, offset, part in _DAY_PATTERNS:
+    for pattern, offset, part, part_only in _DAY_PATTERNS:
         match = re.search(pattern, text)
         if match and offset is not None:
-            return _make_day(offset, part, match.group(0), reference)
+            return _make_day(
+                offset, part, match.group(0), reference, part_only=part_only
+            )
 
     # 2. "in N days" / "in a week"
     match = _IN_N_DAYS_RE.search(text)

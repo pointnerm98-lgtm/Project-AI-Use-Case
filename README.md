@@ -32,7 +32,7 @@ account or license key is needed. Deliberately **not** used: hosted chatbot fram
 (Rasa, Dialogflow) and LLM APIs.
 
 ```
-Streamlit chat UI
+Streamlit chat UI          (not built yet)
       ↓
 Dialogue manager          (keeps last place, limits conversation length)
       ↓
@@ -95,7 +95,8 @@ environment can be rebuilt identically.
 - [x] **Step 4** — iteration 1: grid search, character n-grams, usable threshold
 - [x] **Step 5** — avalanche safety guard, GeoNames place list, place and day extraction
 - [x] **Step 6** — weather service: Open-Meteo client, sky mapping, offline fallback
-- [ ] Later steps — dialogue manager, response generator, Streamlit UI
+- [x] **Step 7** — dialogue manager and response generator: the bot works end-to-end
+- [ ] Later steps — Streamlit UI
 
 ### Running the intent classifier
 
@@ -167,13 +168,51 @@ noticeably different:
 ### Running the tests
 
 ```bash
-python -m pytest           # 178 tests, no network needed
+python -m pytest           # 274 tests, no network needed
 python -m pytest --live    # also runs two smoke tests against the real API
 ```
 
 The live tests are skipped by default: a suite that needs the internet fails on
 a train or in a CI container. They are kept because a fully mocked suite can
 pass while the real API has renamed a field.
+
+### Talking to the bot (step 7)
+
+```bash
+python scripts/chat_cli.py                 # live forecasts
+python scripts/chat_cli.py --offline       # fictional demo data only
+python scripts/chat_cli.py --debug         # show intent, slots and source
+python scripts/chat_cli.py --seed 17       # fixed phrasing, for a screenshot
+```
+
+On a fresh checkout there is no trained model (`models/*.joblib` is
+git-ignored, being a build artefact), so the bot trains one on first start and
+says so. Nothing else has to be run by hand.
+
+A conversation, exactly as produced by `chat_cli.py --seed 17`:
+
+```
+You: How windy is it on the Hochkoenig today?
+
+PeakCast: Today on the Hochkönig expect 13 km/h of wind and gusts to 23
+          km/h. Around or below freezing, so expect icy patches early and
+          late.
+
+You: And tomorrow?
+
+PeakCast: Wind on the Hochkönig tomorrow is around 14 km/h, with gusts up to
+          29 km/h. Gusts reach 29 km/h, worth checking before you launch.
+
+You: What about Kaprun?
+
+PeakCast: Wind in Kaprun tomorrow is around 3 km/h, with gusts up to 6 km/h.
+```
+
+Neither follow-up contains a weather word, so the intent classifier cannot
+carry them on its own - *"And tomorrow?"* comes back at p = 0.31 and
+*"What about Kaprun?"* as confident `out_of_scope`. The dialogue manager
+reuses the remembered intent with the new slot instead. See `DEVLOG.md`,
+step 7.
 
 > **Safety note:** the intent classifier labels *"avalanche risk after the fresh
 > snow"* as a precipitation question with high confidence (p = 0.62, well above

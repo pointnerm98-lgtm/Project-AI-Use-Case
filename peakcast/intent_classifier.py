@@ -51,6 +51,16 @@ ITER1_MODEL_PATH: Path = MODELS_DIR / "intent_model_iter1.joblib"
 # dialogue manager does not have to know which iteration is currently best.
 ACTIVE_MODEL_PATH: Path = ITER1_MODEL_PATH
 
+# --- Hyper-parameters of the active model ---------------------------------
+# The winners of the step 4 grid search (see reports/cv_iter1.json). They are
+# recorded here as constants for one reason: ``ensure_model`` has to be able to
+# rebuild the model on a fresh checkout, and re-running the 75-fit grid search
+# to rediscover numbers that are already known would make the bot's first
+# start needlessly slow. The grid search remains the *source* of these values -
+# scripts/optimize_intent.py still derives them and would reveal a change.
+ITER1_C: float = 10.0
+ITER1_CHAR_NGRAM_RANGE: tuple[int, int] = (2, 4)
+
 # --- Reproducibility -------------------------------------------------------
 # One seed for everything that can shuffle or iterate randomly, so every run
 # produces identical numbers. Required for the portfolio submission.
@@ -347,6 +357,48 @@ def load_model(model_path: Path = MODEL_PATH) -> Pipeline:
             "Run it first:  python scripts/train_intent.py"
         )
     return joblib.load(model_path)
+
+
+def ensure_model(
+    model_path: Path = ACTIVE_MODEL_PATH, verbose: bool = True
+) -> Pipeline:
+    """Load the model, training it first if the file is not there.
+
+    This settles the to-do written down in step 1: ``models/*.joblib`` is
+    git-ignored, because it is a build artefact that the training script
+    regenerates in seconds. The consequence is that a fresh checkout - or the
+    submitted ZIP - has no model file, so the bot has to be able to produce one
+    itself rather than failing with "run this script first". Training takes
+    about a second, which is cheap enough to do on first start.
+
+    Args:
+        model_path: Which model to load. The iteration-1 path is rebuilt with
+            the grid-searched hyper-parameters; any other path gets the
+            baseline pipeline.
+        verbose: Print a short line while training, so a user watching the
+            terminal knows why the first start pauses.
+
+    Returns:
+        The fitted pipeline.
+    """
+    if model_path.exists():
+        return load_model(model_path)
+
+    if verbose:
+        print(f"No intent model at {model_path.name} - training it now ...")
+
+    if model_path == ITER1_MODEL_PATH:
+        pipeline = build_pipeline_iter1(
+            C=ITER1_C, char_ngram_range=ITER1_CHAR_NGRAM_RANGE
+        )
+    else:
+        pipeline = build_pipeline()
+
+    trained = train_and_save(model_path=model_path, pipeline=pipeline)
+
+    if verbose:
+        print(f"  trained and saved to {model_path.name}")
+    return trained
 
 
 def predict_intent(pipeline: Pipeline, text: str) -> tuple[str, float]:

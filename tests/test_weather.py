@@ -653,6 +653,38 @@ def test_offline_mode_can_be_forced() -> None:
 # --- Live smoke test (skipped unless --live) -------------------------------
 
 
+def a_real_day(offset: int = 0, part: str | None = None) -> DaySlot:
+    """Build a day slot anchored to the ACTUAL current date in Vienna.
+
+    The mocked tests use the fixed ``TODAY`` constant, which is what keeps
+    them reproducible - the fake payloads are built around the same constant,
+    so the two always agree.
+
+    The live tests cannot do that, and getting this wrong is how they broke:
+    they asked the real API for the fixed date, which worked on the day it was
+    written and started failing the next morning, because a forecast service
+    does not serve yesterday. A live test has to use the real clock.
+
+    Args:
+        offset: Days from today.
+        part: Part-of-day flag.
+
+    Returns:
+        The day slot.
+    """
+    from datetime import timedelta
+
+    from peakcast.slots import today_in_vienna
+
+    today = today_in_vienna()
+    return DaySlot(
+        target_date=today + timedelta(days=offset),
+        offset_days=offset,
+        part_of_day=part,
+        in_range=True,
+    )
+
+
 @pytest.mark.live
 def test_live_api_still_returns_what_we_parse() -> None:
     """Fetch two real forecasts and check the parsing still holds.
@@ -661,13 +693,16 @@ def test_live_api_still_returns_what_we_parse() -> None:
     renaming or dropping a field. It checks a valley town and a 3 798 m summit,
     because the elevation parameter is the part most specific to this project.
     """
+    from peakcast.slots import today_in_vienna
+
     for place in (INNSBRUCK, GLOCKNER):
         clear_cache()
-        report = get_forecast(place, a_day(0))
+        day = a_real_day(0)
+        report = get_forecast(place, day)
 
         assert report.source == SOURCE_LIVE, "the live API should have answered"
         assert report.place_name == place.name
-        assert report.target_date == TODAY
+        assert report.target_date == today_in_vienna()
         assert -40.0 < report.temperature_min <= report.temperature_max < 45.0
         assert report.wind_gusts_max >= report.wind_speed_max >= 0
         assert 0 <= report.cloud_cover <= 100
@@ -683,7 +718,7 @@ def test_live_api_still_returns_what_we_parse() -> None:
 def test_live_part_of_day_aggregation() -> None:
     """The hourly path must work against the real API too."""
     clear_cache()
-    report = get_forecast(INNSBRUCK, a_day(1, PART_AFTERNOON))
+    report = get_forecast(INNSBRUCK, a_real_day(1, PART_AFTERNOON))
 
     assert report.source == SOURCE_LIVE
     assert report.part_of_day == PART_AFTERNOON
