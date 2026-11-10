@@ -55,6 +55,8 @@ Response generator        (templates with values, units and outdoor hint)
 | `peakcast/` | Python package holding the bot components |
 | `app.py` | the Streamlit chat interface |
 | `tests/` | pytest unit tests for every component, plus UI smoke tests |
+| `data/user_tests/` | where participants' downloaded transcripts are collected (git-ignored) |
+| `.streamlit/` | Streamlit configuration (telemetry off, minimal toolbar) |
 | `docs/` | the approved Phase 1 concept |
 | `DEVLOG.md` | development diary: decisions, problems and results per step |
 
@@ -73,7 +75,7 @@ reports no version at all. The `py` launcher is reliable.
 py -3.12 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
 ```
 
 ### Linux / macOS
@@ -82,11 +84,22 @@ pip install -r requirements.txt
 python3.12 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
 ```
 
-All dependencies are pinned to exact versions in `requirements.txt`, so the
-environment can be rebuilt identically.
+There are two requirement files, and the split matters for deployment:
+
+| File | Contents | When |
+| --- | --- | --- |
+| `requirements.txt` | only what `streamlit run app.py` needs | installed on the deploy host |
+| `requirements-dev.txt` | the above **plus** pytest and matplotlib | for running the tests and the training/evaluation scripts |
+
+`requirements-dev.txt` includes `requirements.txt`, so the command above
+installs everything. If you only want to *run* the chatbot, `pip install -r
+requirements.txt` is enough.
+
+All versions are pinned exactly, so the environment can be rebuilt
+identically - on your machine and on the deploy host.
 
 ### Start the chatbot
 
@@ -143,6 +156,7 @@ switches:
 - [x] **Step 6** — weather service: Open-Meteo client, sky mapping, offline fallback
 - [x] **Step 7** — dialogue manager and response generator: the bot works end-to-end
 - [x] **Step 8** — Streamlit chat interface: `streamlit run app.py`
+- [x] **Step 9** — deployment prep and user-test tooling (transcript export, feedback, analysis)
 
 ### Running the intent classifier
 
@@ -213,8 +227,10 @@ noticeably different:
 
 ### Running the tests
 
+Needs `requirements-dev.txt` installed (the setup block above does that):
+
 ```bash
-python -m pytest           # 292 tests, no network needed
+python -m pytest           # 325 tests, no network needed
 python -m pytest --live    # also runs three tests against the real API
 ```
 
@@ -279,6 +295,97 @@ only in the sidebar, which collapses on a narrow screen.
 Startup, chat behaviour, the two sidebar switches and the troubleshooting table
 are described in [section 4](#4-setup).
 
+### User tests (step 9)
+
+Two things in the sidebar support a user test, and neither stores anything on
+a server - there is no database, no log file and no analytics endpoint in this
+project:
+
+- a **thumbs up / down** control under each answer, optional and unlabelled;
+- a **Download conversation** button, which writes the transcript as a `.txt`
+  file in the participant's browser. They send it on themselves, which means
+  they can read, edit or discard it first.
+
+The file is plain text so a participant is actually able to check it before
+sending. Under each answer it records what the bot recognised:
+
+```
+[2] 14:21:03 PEAKCAST
+Wind on the Hochkönig tomorrow is around 16 km/h, with gusts up to 35 km/h.
+    intent: ask_wind
+    confidence: 0.92
+    place: Hochkönig, Salzburg
+    day: 2026-11-11
+    source: live
+    feedback: up
+```
+
+Collect the files in `data/user_tests/` (git-ignored - they are other people's
+conversations) and summarise them:
+
+```bash
+python scripts/analyze_transcripts.py
+python scripts/analyze_transcripts.py --json reports/user_tests.json
+```
+
+The summary reports per-intent counts, the forecast sources, the thumbs, and -
+deliberately - the unflattering figures: turns below the confidence threshold,
+ask-backs, "I didn't catch that" fallbacks, refusals, and every thumbs-down
+with the question that produced it. Those are the rows that say what to fix
+next.
+
+## 6. Deployment (Streamlit Community Cloud)
+
+The app runs unchanged on [Streamlit Community
+Cloud](https://share.streamlit.io). Nothing about the local ZIP/README route
+above changes - the same `app.py` and the same `requirements.txt`.
+
+### What to click
+
+**On GitHub**
+
+1. Create a repository (private is fine) and push this project to it.
+2. Make sure `app.py`, `requirements.txt`, `data/places_at.csv` and
+   `data/offline_forecasts.json` are committed. They are - but it is worth
+   checking after a fresh clone, because the app cannot work without them and
+   `models/` is intentionally **not** committed.
+
+**On Streamlit Community Cloud**
+
+3. Go to [share.streamlit.io](https://share.streamlit.io) and sign in with
+   GitHub.
+4. Authorise the GitHub app. For a **private** repository you have to grant
+   access to private repositories as well - if your repo does not appear in
+   the list at the next step, this is why. The permission can be added later
+   under *Settings → Linked accounts*.
+5. Click **Create app** → deploy from an existing repository.
+6. Fill in:
+   - **Repository:** your repo
+   - **Branch:** `master` (or `main`)
+   - **Main file path:** `app.py`
+7. Open **Advanced settings** and set **Python version** to **3.12**. This
+   matters: the versions in `requirements.txt` are pinned, and a newer Python
+   may not have matching wheels for them, which turns into a build failure.
+   Leave **Secrets** empty - the app needs no API keys.
+8. Click **Deploy**. The first build installs the dependencies and takes a few
+   minutes.
+
+### What to expect
+
+| | |
+| --- | --- |
+| **First visit after a build** | The intent model is not in the repository, so the app trains it on the first page load and shows a spinner for about a second. The filesystem on the host is temporary, so this happens again after every cold start. |
+| **Sleeping** | A free app goes to sleep after roughly **12 hours** without traffic. The next visitor sees a "wake up" screen; it takes about a **minute** to come back, plus the model training. Worth knowing before a presentation - open the app a few minutes beforehand. |
+| **No network to Open-Meteo** | The app falls back to its built-in sample dataset and labels every answer `▲ sample data - not a real forecast`. It does not error. |
+| **Memory** | The free tier gives about 1 GB per app. PeakCast loads scikit-learn plus a 2.2 MB place list, well inside that. |
+| **Who can see it** | Anyone with the URL, even from a private repository - the repo is private, the app is not. Don't put anything confidential in it. |
+
+> **Licence note:** the free Open-Meteo API is for **non-commercial use**
+> ([terms](https://open-meteo.com/en/terms)). A publicly reachable deployment
+> of this coursework project stays within that; a commercial deployment would
+> need an Open-Meteo subscription, and only the endpoint URL in
+> `peakcast/weather.py` would have to change.
+
 > **Safety note:** the intent classifier labels *"avalanche risk after the fresh
 > snow"* as a precipitation question with high confidence (p = 0.62, well above
 > the 0.35 fallback threshold), and the better model is the more confidently
@@ -291,7 +398,7 @@ are described in [section 4](#4-setup).
 > is the extent of that bulletin's coverage. See `DEVLOG.md`, steps 2, 4, 5
 > and 6.
 
-## 6. Data sources and licences
+## 7. Data sources and licences
 
 | Source | Used for | Licence / terms |
 | --- | --- | --- |

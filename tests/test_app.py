@@ -313,7 +313,156 @@ def test_the_answer_limit_ends_the_conversation_in_the_ui() -> None:
     assert any("finished" in info.value for info in app.info)
 
 
+# --- The user-test features ----------------------------------------------
+
+
+def download_buttons(app: AppTest) -> list:
+    """Collect the real download buttons in the sidebar.
+
+    Before anything has been asked the app shows a *disabled plain button*
+    instead, so the absence of a download button is itself the assertion in
+    one of the tests below.
+
+    Args:
+        app: The running app.
+
+    Returns:
+        The download-button elements.
+    """
+    return list(app.sidebar.get("download_button") or [])
+
+
+def test_download_is_offered_only_once_there_is_something_to_export() -> None:
+    """An empty conversation must not offer an empty file.
+
+    The control is still visible, as a disabled button, so a tester can see
+    the feature exists before they have asked anything.
+    """
+    app = start_app(offline=True)
+
+    assert not download_buttons(app), "nothing to download yet"
+    placeholder = [
+        button for button in app.sidebar.button
+        if button.key == "download_placeholder"
+    ]
+    assert placeholder and placeholder[0].disabled is True
+
+    app.chat_input[0].set_value("temperature in Lienz tomorrow").run()
+
+    assert not app.exception
+    assert len(download_buttons(app)) == 1
+
+
+def test_a_feedback_control_is_offered_on_each_answer() -> None:
+    """The thumbs are per answer, and only on answers.
+
+    A rating on the user's own message would make no sense, so the widget is
+    rendered only where a ``BotTurn`` exists.
+    """
+    app = start_app(offline=True)
+    app.chat_input[0].set_value("temperature in Lienz tomorrow").run()
+
+    assert len(app.get("feedback") or []) == 1
+
+    app.chat_input[0].set_value("and the wind").run()
+
+    assert len(app.get("feedback") or []) == 2
+
+
+def test_a_thumbs_down_survives_the_next_message() -> None:
+    """A rating must stay attached as the conversation continues.
+
+    Streamlit keeps a widget value for as long as its key exists, so this is
+    really a test that the keys are stable across reruns - if they were
+    rebuilt from a changing index, the rating would move or vanish.
+    """
+    app = start_app(offline=True)
+    app.chat_input[0].set_value("temperature in Lienz tomorrow").run()
+
+    app.session_state["feedback_1"] = 0      # thumbs down on the first answer
+    app.run()
+    app.chat_input[0].set_value("and the wind").run()
+
+    assert not app.exception
+    assert app.session_state["feedback_1"] == 0
+
+
+def test_reset_clears_the_feedback_too() -> None:
+    """A new conversation must not inherit the old one's ratings.
+
+    Without this, answer 1 of the new conversation would carry answer 1 of the
+    old one's thumbs-down - and that stale rating would end up in an exported
+    transcript, which is exactly the kind of error that quietly corrupts a
+    user-test summary.
+    """
+    app = start_app(offline=True)
+    app.chat_input[0].set_value("temperature in Lienz tomorrow").run()
+    app.session_state["feedback_1"] = 0
+    app.run()
+
+    app.button(key="reset_sidebar").click().run()
+
+    assert not app.exception
+    assert app.session_state.get("feedback_1") is None
+
+
+# --- The offline fallback, as the host would see it ----------------------
+
+
+def test_a_failing_weather_api_still_answers_and_says_it_is_sample_data(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """If the host cannot reach Open-Meteo, the app must degrade visibly.
+
+    This is the deployment case: a cloud host with no outbound access, or
+    Open-Meteo down, must not produce an error page. The bot falls back to its
+    demo dataset, and the badge has to say so - the fallback is only acceptable
+    *because* it is labelled.
+
+    Live mode is used deliberately (``offline=False``): the point is that a
+    failure in the live path lands on the offline data, not that the offline
+    toggle works.
+    """
+    import requests
+
+    def always_fail(*args, **kwargs):
+        raise requests.exceptions.ConnectionError("no route to host")
+
+    monkeypatch.setattr(requests, "get", always_fail)
+
+    app = start_app(offline=False)
+    app.chat_input[0].set_value("temperature in Lienz tomorrow").run()
+
+    assert not app.exception, "a dead API must not break the page"
+
+    answer = assistant_texts(app)[-1]
+    assert "°C" in answer, "it must still answer"
+
+    badges = captions_of(app)
+    assert any("sample data" in badge for badge in badges)
+    assert not any("live forecast" in badge for badge in badges)
+
+
 # --- The sidebar ---------------------------------------------------------
+
+
+def test_sidebar_explains_the_user_test_and_that_nothing_is_stored() -> None:
+    """Participants must be told what happens to their conversation.
+
+    "Nothing is stored on the server" is a factual claim the project makes -
+    there is no database, no log file and no analytics endpoint - and it is
+    the basis on which a tester agrees to take part, so it is asserted rather
+    than trusted.
+    """
+    app = start_app(offline=True)
+
+    sidebar_text = " ".join(
+        [block.value for block in app.sidebar.markdown]
+        + [block.value for block in app.sidebar.caption]
+    )
+
+    assert "user test" in sidebar_text.lower()
+    assert "Nothing is stored on the server" in sidebar_text
 
 
 def test_sidebar_carries_the_disclaimer_and_attribution() -> None:

@@ -95,14 +95,10 @@ def a_day(offset: int = 0, part: str | None = None) -> DaySlot:
     )
 
 
-@pytest.fixture(autouse=True)
-def _clear_forecast_cache() -> None:
-    """Empty the cache before every test.
-
-    Without this, one test's cached payload would satisfy the next test's
-    request and quietly hide whatever that test was meant to check.
-    """
-    clear_cache()
+# The forecast cache is cleared before every test by an autouse fixture in
+# conftest.py, so no per-module fixture is needed here. It lives there because
+# the leak it prevents is not specific to this file: an app test that expects
+# the offline fallback was once satisfied by a payload these tests had cached.
 
 
 # --- Fake HTTP -------------------------------------------------------------

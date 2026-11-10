@@ -470,6 +470,18 @@ class Bot:
         place = slots.place
         day = slots.day
 
+        # What THIS message actually named, recorded before any inheritance.
+        # It has to be captured here, because the day inheritance below
+        # replaces an unspecified day with the remembered one - after which
+        # `day.is_default` is False and every message looks as though it named
+        # a day. That is what made a mid-conversation "hmm" come back with a
+        # repeat of the previous forecast instead of the help reply: the
+        # inherited day made it look like a follow-up. A follow-up is a
+        # message that brings something *new*, so the test has to be on what
+        # the user supplied.
+        named_place = slots.place is not None
+        named_day = not slots.day.is_default
+
         # --- Which day is this about?
         #
         # Two kinds of inheritance, both deliberate:
@@ -519,10 +531,10 @@ class Bot:
         if confident and intent in WEATHER_INTENTS:
             return intent, place or state.last_place, day
 
-        # --- Case 3: a follow-up. The message has a slot but no usable
-        #     intent, and there is a previous weather question to continue.
-        has_new_slot = place is not None or not day.is_default
-        if has_new_slot and state.last_weather_intent is not None:
+        # --- Case 3: a follow-up. The message brings a new slot but no
+        #     usable intent, and there is a previous weather question to
+        #     continue.
+        if (named_place or named_day) and state.last_weather_intent is not None:
             return state.last_weather_intent, place or state.last_place, day
 
         # --- A weather intent that did not clear the threshold, but the

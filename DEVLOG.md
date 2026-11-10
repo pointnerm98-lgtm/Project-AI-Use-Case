@@ -1555,3 +1555,231 @@ Every component in the concept's architecture is built and tested:
 - A **"70 % chance, take the jacket"** hint would use
   `precipitation_probability_max`, which is fetched and reported but never
   drives a hint.
+
+---
+
+## Step 9 — Deployment prep and user-test tooling (2026-11-10)
+
+Two jobs: make the app deployable on Streamlit Community Cloud from a private
+repository, and make a user test produce data that can be summarised rather
+than remembered. The ZIP/README route for the tutor is unchanged — verified,
+not assumed (see the clean-clone check below).
+
+### Deployment prep
+
+#### The requirements split
+
+`requirements.txt` is what the deploy host installs on every build, so it now
+contains **only** what `streamlit run app.py` needs:
+
+| | |
+| --- | --- |
+| `requirements.txt` | streamlit, scikit-learn, pandas, numpy, joblib, requests |
+| `requirements-dev.txt` | `-r requirements.txt` plus pytest and matplotlib |
+
+Decided by reading the imports rather than by guessing:
+
+- **pandas stays runtime.** It is tempting to call it an analysis dependency,
+  but `load_dataset` uses `pd.read_csv`, and `ensure_model` trains from the
+  CSV on first start — which on a cloud host happens on *every* cold start.
+- **numpy is now declared explicitly.** It arrives with scikit-learn anyway,
+  but `intent_classifier.py` does `import numpy as np` directly, and a package
+  you import is a package you declare. Relying on a transitive dependency is
+  how a working app breaks when an upstream pin changes.
+- **matplotlib is dev-only.** Its only users are
+  `scripts/compare_iterations.py` and `scripts/evaluate_intent.py`, which
+  produce the charts in `reports/`. Nothing in `peakcast/` or `app.py` touches
+  it.
+- **pytest is obviously dev-only**, and shipping a test runner to a web host
+  is pure cost.
+
+#### The clean-clone check
+
+Rather than reason about whether a fresh deploy would work, I built one:
+`git archive HEAD` into an empty folder (so **only tracked files**), a new
+virtual environment, and `pip install -r requirements.txt` alone. Then started
+the app there.
+
+| Check | Result |
+| --- | --- |
+| `pytest` / `matplotlib` importable? | **No** — correctly absent |
+| Model file present? | **No** — `models/` is git-ignored by design |
+| App starts? | Yes, no exception |
+| Model trained on first page load? | Yes — `intent_model_iter1.joblib` appeared |
+| Answers with a live forecast? | Yes, badge `● live forecast` |
+| With `requests.get` dead? | Answers from the demo dataset, badge `▲ sample data` |
+| `build_places.py` needed at runtime? | No — never imported |
+
+So the committed `data/places_at.csv`, `data/place_aliases.csv` and
+`data/offline_forecasts.json` are sufficient, and the GeoNames download script
+is a build-time tool only. That was the thing most likely to be wrong, because
+it is exactly the kind of dependency that is invisible on a machine where the
+file already exists.
+
+#### What goes in the README
+
+A full Deployment section: the GitHub steps, the Community Cloud steps,
+**Python 3.12** in Advanced settings (the pins have no wheels guarantee on a
+newer Python, and that failure appears as an opaque build error), no secrets
+needed, and what to expect afterwards — the first-load training, the ~12-hour
+sleep and the ~1-minute wake, the offline fallback, the ~1 GB memory limit,
+and that **a private repo does not make the app private**. The Open-Meteo
+non-commercial term is restated there, next to the deployment it applies to.
+
+### User-test tooling
+
+#### `peakcast/transcript.py` — writes and parses
+
+The transcript is the only artefact in this project that must be **readable by
+a person and parsable by a script**, and those pull against each other: a
+format that is pleasant to read is easy to parse sloppily. So the writer and
+the parser live in one module, next to each other, with a round-trip test as
+the anchor.
+
+**Plain text, not JSON** — and the reason is not aesthetic. The tester has to
+be willing to open the file. A `.txt` that reads like a conversation can be
+checked at a glance before it is sent, which is the difference between
+informed consent and forwarding a blob. The file says so itself:
+
+> This file was created in your browser. Nothing was stored on a server. You
+> can read it, edit it or delete it before sending it.
+
+That sentence is in the file rather than only in the app, because the file is
+what actually gets sent on.
+
+The parser is deliberately **forgiving**: participants are told they may edit
+the file, so an edited or hand-trimmed block is skipped rather than aborting,
+and unknown keys are ignored. A strict parser would mean one tidied file
+costing a whole session.
+
+Two decisions about what gets written:
+
+- **Only fields that apply.** A greeting carries no empty `place:` line.
+  Readability is not a side concern here; a tester who cannot skim the file
+  cannot meaningfully consent to sending it.
+- **No `confidence: 0.00` on a guarded turn.** The safety guard never runs the
+  classifier, so writing a zero would read as "the model was certain it was
+  nothing" when the model was never asked. The field is simply absent.
+
+Confidence is stored to two decimals, so the round-trip test compares it with
+a tolerance — 0.9237 tells a reader nothing that 0.92 does not.
+
+#### `records_from_history` is a pure function
+
+The mapping from a live conversation to transcript records takes plain data
+and returns plain data, and knows nothing about Streamlit. `app.py` only reads
+`st.session_state` and hands it over. That is what makes the mapping testable
+without starting an app — and the mapping is precisely where a field would
+quietly go missing from an export, which is invisible in the UI and caught by
+a test.
+
+#### Feedback
+
+`st.feedback("thumbs")` under each answer, optional and unlabelled. A rating
+control that nagged would change the behaviour it exists to measure.
+
+One bug worth recording, because it would have corrupted the data rather than
+breaking anything: Streamlit keeps a widget value for as long as its key
+exists, so after a reset, answer 1 of the *new* conversation inherited answer
+1 of the *old* one's thumbs-down — and that stale rating would have been
+exported as if it were real. `reset_conversation` now deletes every
+`feedback_*` key, with a test.
+
+#### `scripts/analyze_transcripts.py`
+
+Reports per-intent counts, forecast sources, thumbs, and — deliberately — the
+unflattering figures: turns below the 0.35 threshold, ask-backs, "I didn't
+catch that" fallbacks, refusals, guard hits, and every thumbs-down with the
+question that produced it. A summary showing only intent counts would be a
+presentation, not an evaluation.
+
+Three choices behind it:
+
+- **Every example quoted is a real sentence from a transcript**, so the
+  summary can be read next to the files it came from.
+- **A bot turn is reported with the question before it.** "The bot asked which
+  place" is far less useful than knowing *which question* made it ask.
+- **Satisfaction is a share of the *rated* answers, not of all answers.** The
+  control is optional, so most turns carry no rating; dividing by every answer
+  would understate it and make the figure meaningless.
+
+The three canned replies are matched by **exact text imported from
+`dialogue.py`**, never retyped — so rewording a reply cannot silently stop it
+being counted. There is a test that reads this script's own source and fails
+if someone replaces the import with a literal.
+
+Run against three generated transcripts, the summary immediately surfaced the
+defect that is already behind a strict xfail: *"how high is the Dachstein"* →
+`ask_temperature` p = 0.62, with a thumbs down. That is the tooling working —
+the known classifier error showing up as a user complaint, in the report, from
+the data.
+
+`data/user_tests/` is git-ignored apart from its README. Those are other
+people's conversations: working material for the evaluation, not part of a
+repository that gets submitted.
+
+### Two bugs found while building this
+
+#### A mid-conversation "hmm" was answered instead of being questioned
+
+Generating sample transcripts put gibberish into a running conversation for
+the first time, and the bot answered it with a repeat of the previous
+forecast.
+
+The cause was the step 7 day inheritance. `_apply_context` replaces an
+unspecified day with the remembered one — and then tested
+`not day.is_default` to decide whether the message was a follow-up. After the
+inheritance that is always false, so **every** message looked as though it had
+named a day, and any unrecognised input became a follow-up.
+
+A follow-up is a message that brings something *new*, so the test has to be on
+what the user actually supplied. `named_place` and `named_day` are now captured
+from the original slots, before any inheritance. Gibberish gets the help reply
+again; follow-ups and day inheritance both still work.
+
+This one only showed up because the user-test tooling made it easy to run a
+long, messy conversation — which is the argument for the tooling in miniature.
+
+#### A test that passed alone and failed under `--live`
+
+`test_a_failing_weather_api_still_answers_and_says_it_is_sample_data`
+monkeypatches `requests.get` to fail and expects the sample-data badge. It
+passed on its own and failed with `--live`.
+
+`peakcast.weather` caches whole payloads in a module-level dict for ten
+minutes — right in production, where a conversation asks about the same place
+repeatedly, and a trap in a suite, because the cache outlives a test. The live
+tests had already fetched Lienz, so the cache answered from the warm payload,
+`requests.get` was never called, and the badge truthfully said "live forecast".
+**The test was right; the isolation was wrong.**
+
+The cache-clearing fixture moved from `test_weather.py` into `conftest.py` as
+autouse, so no future test file can reintroduce the leak by forgetting it.
+Worth noting that this is the third time a *fixture* rather than the code has
+been the bug — the pattern to watch for is a fixture that cannot distinguish
+"the code is wrong" from "the setup is wrong".
+
+### Testing
+
+**325 tests with no network** (328 with `--live`), plus 1 strict xfail. New:
+14 transcript, 13 analysis, 6 app.
+
+The deployment-relevant one is
+`test_a_failing_weather_api_still_answers_and_says_it_is_sample_data`: it runs
+the app in *live* mode with a dead `requests.get`, which is the cloud-host
+case — no outbound access, or Open-Meteo down. The app must not produce an
+error page; it must answer from the demo dataset and say so. The fallback is
+only acceptable *because* it is labelled.
+
+### Open points
+
+- The user tests themselves. The tooling is ready; the data is not collected
+  yet.
+- The `out_of_scope` quantity leak (`"how many people live in Linz"`,
+  `"how high is the Dachstein"`) is still the one classifier error visible in
+  normal use, still behind a strict xfail. The user tests are now the
+  intended source of new `out_of_scope` phrasings — from real conversations,
+  never from `reports/misclassified_*.csv`, which would leak the test set.
+- The optional sentence-embedding comparison remains optional and remains not
+  part of the submitted concept.
+- `Place.matched_text` is still unused by the response generator.

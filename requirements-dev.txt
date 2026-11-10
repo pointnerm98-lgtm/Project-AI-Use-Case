@@ -1,0 +1,13 @@
+# PeakCast - DEVELOPMENT dependencies
+#
+# The runtime packages plus what is needed to run the tests and the
+# training/evaluation scripts. Nothing in here is imported by app.py or by the
+# peakcast package, which is why it is kept out of requirements.txt: that file
+# is installed on the deploy host, and the host has no use for a test runner.
+#
+# Install with:  pip install -r requirements-dev.txt
+
+-r requirements.txt
+
+pytest==9.2.0         # the test suite in tests/
+matplotlib==3.11.2    # confusion matrix and comparison charts in scripts/

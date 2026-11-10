@@ -29,3 +29,10 @@ data/geonames_raw/
 
 # pytest cache
 .pytest_cache/
+
+# Transcripts sent in by user-test participants. These are other people's
+# conversations: they are working material for the evaluation, not part of the
+# project, and they do not belong in a repository that gets submitted.
+# scripts/analyze_transcripts.py reads this folder.
+data/user_tests/*
+!data/user_tests/README.md

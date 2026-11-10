@@ -13,7 +13,9 @@ That separation is the point. If the UI could decide anything about an answer,
 there would be two bots - one tested and one on screen - and the tested one
 would not be the one the tutor sees. So the rule here is: this module may
 *render* what a ``BotTurn`` contains, and may not derive anything from it that
-``dialogue.py`` has not already decided.
+``dialogue.py`` has not already decided. The same rule applies to the
+transcript export: the formatting and the record mapping live in
+``peakcast.transcript``, so they can be tested without starting an app.
 
 Design notes
 ------------
@@ -26,16 +28,29 @@ Design notes
   whether the numbers are a live forecast or sample data. A fictional forecast
   must never be able to look real, and a caption under the message is harder
   to miss than a sentence inside it.
+* **Nothing is stored on the server.** There is no database, no log file and
+  no analytics endpoint in this project. The conversation lives in the
+  browser's session, and the only way it leaves is the tester pressing
+  "Download conversation" and sending the file themselves.
 * **NLU details are off by default.** They are evidence for the report, not
   something a hiker needs, so they live behind a sidebar toggle.
 """
 
 from __future__ import annotations
 
+from datetime import datetime
+
 import streamlit as st
 
 from peakcast.dialogue import MAX_ANSWERS, Bot, BotTurn, start_conversation
 from peakcast.intent_classifier import ACTIVE_MODEL_PATH
+from peakcast.slots import VIENNA
+from peakcast.transcript import (
+    TurnRecord,
+    build_transcript,
+    records_from_history,
+    suggested_filename,
+)
 from peakcast.weather import SOURCE_LIVE, SOURCE_OFFLINE
 
 # --- Page setup ------------------------------------------------------------
@@ -88,6 +103,18 @@ ATTRIBUTION: str = (
     "[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)."
 )
 
+USER_TEST_NOTE: str = (
+    "Taking part in a user test? Have your conversation, give the answers a "
+    "thumbs up or down, then download the transcript and send me the file. "
+    "Nothing is stored on the server."
+)
+
+DOWNLOAD_HELP: str = (
+    "Saves this conversation as a text file in your browser, including what "
+    "the bot recognised and any thumbs you gave. Nothing is stored on the "
+    "server - you can read it before you send it."
+)
+
 CONVERSATION_OVER: str = (
     "This conversation is finished. Start a new one to keep asking."
 )
@@ -100,6 +127,11 @@ SOURCE_BADGES: dict[str, str] = {
     SOURCE_LIVE: ":green[● live forecast]",
     SOURCE_OFFLINE: ":orange[▲ sample data - not a real forecast]",
 }
+
+# Prefix of the per-answer feedback widget keys. Named here because two
+# functions need it: the one that reads the thumbs and the one that clears
+# them on reset.
+FEEDBACK_KEY_PREFIX: str = "feedback_"
 
 
 @st.cache_resource(show_spinner=False)
@@ -131,25 +163,108 @@ def ensure_session() -> None:
     Streamlit re-executes this whole script top to bottom on every
     interaction, so a plain module-level variable would be reset each time.
 
-    ``history`` holds the rendered turns. The bot's own ``DialogueState``
-    holds what the *bot* remembers (last place, last day, answer count); the
-    two are deliberately separate, because the transcript on screen and the
-    conversation memory are different things.
+    ``history`` holds the rendered turns, each a dict with ``role``, ``text``,
+    ``turn`` and ``time``. The bot's own ``DialogueState`` holds what the *bot*
+    remembers (last place, last day, answer count); the two are deliberately
+    separate, because the transcript on screen and the conversation memory are
+    different things.
+
+    The timestamp is taken when the message happens rather than when the
+    transcript is exported, so a downloaded conversation shows how it actually
+    unfolded.
     """
     if "dialogue" not in st.session_state:
         st.session_state.dialogue = start_conversation()
     if "history" not in st.session_state:
-        # (role, text, BotTurn | None)
         st.session_state.history = []
     if "queued" not in st.session_state:
         st.session_state.queued = None
 
 
 def reset_conversation() -> None:
-    """Start a fresh conversation, keeping the loaded model."""
+    """Start a fresh conversation, keeping the loaded model.
+
+    The feedback widgets are cleared too. Their values live in
+    ``st.session_state`` under per-message keys, and Streamlit keeps a widget
+    value for as long as its key is there - so without this, answer 1 of the
+    new conversation would inherit the thumbs-down from answer 1 of the old
+    one, and that stale rating would end up in an exported transcript.
+    """
+    stale = [
+        key
+        for key in st.session_state
+        if str(key).startswith(FEEDBACK_KEY_PREFIX)
+    ]
+    for key in stale:
+        del st.session_state[key]
+
     st.session_state.dialogue = start_conversation()
     st.session_state.history = []
     st.session_state.queued = None
+
+
+def collect_turn_records() -> list[TurnRecord]:
+    """Read the session's history and thumbs into transcript records.
+
+    A thin adapter, and intentionally so: everything beyond reading
+    ``st.session_state`` lives in ``peakcast.transcript.records_from_history``,
+    which is a pure function and therefore testable without starting an app.
+    This keeps app.py to what only app.py can do.
+
+    Returns:
+        One record per message, in order.
+    """
+    feedback = {
+        index: st.session_state[f"{FEEDBACK_KEY_PREFIX}{index}"]
+        for index in range(len(st.session_state.history))
+        if st.session_state.get(f"{FEEDBACK_KEY_PREFIX}{index}") is not None
+    }
+    return records_from_history(st.session_state.history, feedback)
+
+
+def render_download(offline_mode: bool) -> None:
+    """Draw the "Download conversation" button.
+
+    The transcript is built on every rerun rather than when the button is
+    clicked, because ``st.download_button`` needs its payload up front - it
+    hands the browser a file directly, with no server round trip. That is also
+    the property that matters here: **nothing is stored on the server**, and
+    this button is the only way a conversation leaves the browser.
+
+    Before anything has been asked there is nothing to export, so a disabled
+    plain button is shown instead - visible, so a tester knows the feature is
+    there, but not offering an empty file.
+
+    Args:
+        offline_mode: Whether the offline toggle is on, so the transcript
+            header can record which data source the conversation used.
+    """
+    records = collect_turn_records()
+
+    if not records:
+        st.button(
+            "Download conversation",
+            key="download_placeholder",
+            disabled=True,
+            use_container_width=True,
+            help="Ask something first - there is nothing to export yet.",
+        )
+        return
+
+    exported_at = datetime.now(VIENNA)
+    st.download_button(
+        "Download conversation",
+        key="download_transcript",
+        data=build_transcript(
+            records,
+            exported_at=exported_at,
+            mode="offline demo data" if offline_mode else "live forecasts",
+        ),
+        file_name=suggested_filename(exported_at),
+        mime="text/plain",
+        use_container_width=True,
+        help=DOWNLOAD_HELP,
+    )
 
 
 def render_sidebar() -> tuple[bool, bool]:
@@ -182,6 +297,11 @@ def render_sidebar() -> tuple[bool, bool]:
                 "place and day under each answer."
             ),
         )
+
+        st.divider()
+        st.subheader("User test")
+        render_download(offline_mode)
+        st.caption(USER_TEST_NOTE)
 
         st.divider()
         # Keyed so the smoke tests can target this button rather than relying
@@ -240,10 +360,17 @@ def render_nlu_details(turn: BotTurn) -> None:
         st.caption(" · ".join(parts))
 
 
-def render_turn(role: str, text: str, turn: BotTurn | None, show_nlu: bool) -> None:
-    """Draw one chat message, with its badge and optional details.
+def render_turn(
+    index: int,
+    role: str,
+    text: str,
+    turn: BotTurn | None,
+    show_nlu: bool,
+) -> None:
+    """Draw one chat message, with its badge, feedback control and details.
 
     Args:
+        index: Position in the history, used as the feedback widget's key.
         role: ``"user"`` or ``"assistant"``.
         text: The message text.
         turn: The ``BotTurn`` behind an assistant message, else ``None``.
@@ -258,6 +385,13 @@ def render_turn(role: str, text: str, turn: BotTurn | None, show_nlu: bool) -> N
         if turn is not None and show_nlu:
             render_nlu_details(turn)
 
+        if turn is not None:
+            # Optional, and unobtrusive on purpose: a rating control that
+            # nagged would change the behaviour it exists to measure. The
+            # value is held by Streamlit under this key, read back when the
+            # transcript is built, and sent nowhere.
+            st.feedback("thumbs", key=f"{FEEDBACK_KEY_PREFIX}{index}")
+
 
 def handle_message(bot: Bot, message: str) -> None:
     """Send one message to the bot and record both sides of the exchange.
@@ -266,9 +400,25 @@ def handle_message(bot: Bot, message: str) -> None:
         bot: The bot.
         message: What the user said.
     """
-    st.session_state.history.append(("user", message, None))
+    st.session_state.history.append(
+        {
+            "role": "user",
+            "text": message,
+            "turn": None,
+            "time": datetime.now(VIENNA),
+        }
+    )
+
     turn = bot.respond(st.session_state.dialogue, message)
-    st.session_state.history.append(("assistant", turn.text, turn))
+
+    st.session_state.history.append(
+        {
+            "role": "assistant",
+            "text": turn.text,
+            "turn": turn,
+            "time": datetime.now(VIENNA),
+        }
+    )
 
 
 def main() -> None:
@@ -279,16 +429,17 @@ def main() -> None:
     st.title("⛰️ PeakCast")
     st.caption("Weather for alpine sports in Austria")
 
-    # On a fresh checkout there is no trained model: models/*.joblib is
-    # git-ignored because it is a build artefact. The bot trains one itself,
-    # which takes about a second - the spinner is there so the first start
-    # does not look like a hang.
     # Note the inversion: the sidebar offers "offline demo mode", the Bot
     # takes "allow_live". Getting this the wrong way round silently served
     # sample data in live mode, which the badge made visible and the smoke
     # test now pins.
     allow_live = not offline_mode
 
+    # On a fresh checkout there is no trained model: models/*.joblib is
+    # git-ignored because it is a build artefact. The bot trains one itself,
+    # which takes about a second - the spinner is there so the first start
+    # does not look like a hang. On a fresh cloud deploy this is the first
+    # thing that happens, so it matters more there than it does locally.
     if not ACTIVE_MODEL_PATH.exists():
         with st.spinner(
             "First start: training the intent classifier (about a second) ..."
@@ -304,8 +455,10 @@ def main() -> None:
         with st.chat_message("assistant", avatar="⛰️"):
             st.markdown(WELCOME)
 
-    for role, text, turn in st.session_state.history:
-        render_turn(role, text, turn, show_nlu)
+    for index, entry in enumerate(st.session_state.history):
+        render_turn(
+            index, entry["role"], entry["text"], entry["turn"], show_nlu
+        )
 
     # --- A message queued by an example button on the previous run.
     # The buttons cannot answer in place: Streamlit reruns the script when one
