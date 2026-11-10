@@ -32,7 +32,7 @@ account or license key is needed. Deliberately **not** used: hosted chatbot fram
 (Rasa, Dialogflow) and LLM APIs.
 
 ```
-Streamlit chat UI          (not built yet)
+Streamlit chat UI          (app.py)
       ↓
 Dialogue manager          (keeps last place, limits conversation length)
       ↓
@@ -53,7 +53,8 @@ Response generator        (templates with values, units and outdoor hint)
 | `reports/` | evaluation metrics and plots used in the presentation |
 | `scripts/` | runnable scripts for training, evaluation and manual testing |
 | `peakcast/` | Python package holding the bot components |
-| `tests/` | pytest unit tests for the safety guard and slot extraction |
+| `app.py` | the Streamlit chat interface |
+| `tests/` | pytest unit tests for every component, plus UI smoke tests |
 | `docs/` | the approved Phase 1 concept |
 | `DEVLOG.md` | development diary: decisions, problems and results per step |
 
@@ -87,6 +88,51 @@ pip install -r requirements.txt
 All dependencies are pinned to exact versions in `requirements.txt`, so the
 environment can be rebuilt identically.
 
+### Start the chatbot
+
+With the virtual environment activated, from the project root:
+
+```bash
+streamlit run app.py
+```
+
+Streamlit prints a local URL (`http://localhost:8501`) and opens it in your
+browser. If it does not open by itself, paste the URL in.
+
+**What to expect on the first start.** The trained model is not part of the
+repository - it is a build artefact that `models/` is git-ignored for - so the
+app trains it the first time it runs. You will see
+*"First start: training the intent classifier"* for about a second, then the
+chat. Nothing has to be run by hand beforehand: no training script, no data
+download. The place list (`data/places_at.csv`) and the offline demo forecasts
+are committed.
+
+**The chat.** Four example questions are offered as buttons, so you can start
+without typing. Follow-ups work without repeating yourself - ask
+*"How windy is it on the Großglockner tomorrow?"*, then just *"And tomorrow?"*
+or *"What about Kaprun?"*. Every answer is labelled with where its numbers came
+from: **live forecast** or **sample data**. A conversation ends after ten
+answers or when you say goodbye, and then offers a restart button.
+
+**The sidebar** (the `»` arrow at the top left, or swipe in on a phone) holds a
+short description, the safety disclaimer, the data attribution and two
+switches:
+
+| Switch | What it does |
+| --- | --- |
+| **Offline demo mode** | Answers from the built-in sample dataset instead of calling the weather API. Use it if the network fails during a presentation - answers stay clearly marked as sample data. |
+| **Show NLU details** | Shows the recognised intent, its confidence and the extracted place and day under each answer. Off by default; useful for seeing *why* the bot answered as it did. |
+
+### If something goes wrong
+
+| Symptom | Cause and fix |
+| --- | --- |
+| `streamlit: command not found` | The virtual environment is not active. Re-run the activate line from the setup block above. |
+| `Activate.ps1 cannot be loaded because running scripts is disabled` (Windows) | PowerShell's execution policy. Either run `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` first (it lasts only for that window), or skip activation and call the interpreter directly: `.\.venv\Scripts\python.exe -m streamlit run app.py`. |
+| `python` reports no version (Windows) | That is the Microsoft Store stub. Use `py -3.12` instead, as in the setup block. |
+| Every answer says **sample data** | No internet connection, or Open-Meteo is unreachable. The bot falls back to its demo dataset on purpose so it still works; the numbers are fictional. |
+| The first start seems to hang | It is training the intent classifier. It takes about a second on a normal machine. |
+
 ## 5. Current status
 
 - [x] **Step 1** — project setup: virtual environment, folder structure, git repository
@@ -96,7 +142,7 @@ environment can be rebuilt identically.
 - [x] **Step 5** — avalanche safety guard, GeoNames place list, place and day extraction
 - [x] **Step 6** — weather service: Open-Meteo client, sky mapping, offline fallback
 - [x] **Step 7** — dialogue manager and response generator: the bot works end-to-end
-- [ ] Later steps — Streamlit UI
+- [x] **Step 8** — Streamlit chat interface: `streamlit run app.py`
 
 ### Running the intent classifier
 
@@ -168,8 +214,8 @@ noticeably different:
 ### Running the tests
 
 ```bash
-python -m pytest           # 274 tests, no network needed
-python -m pytest --live    # also runs two smoke tests against the real API
+python -m pytest           # 292 tests, no network needed
+python -m pytest --live    # also runs three tests against the real API
 ```
 
 The live tests are skipped by default: a suite that needs the internet fails on
@@ -194,18 +240,19 @@ A conversation, exactly as produced by `chat_cli.py --seed 17`:
 ```
 You: How windy is it on the Hochkoenig today?
 
-PeakCast: Today on the Hochkönig expect 13 km/h of wind and gusts to 23
-          km/h. Around or below freezing, so expect icy patches early and
-          late.
+PeakCast: Today on the Hochkönig expect 27 km/h of wind and gusts to 61
+          km/h. That is not flying weather, and exposed ridges will be
+          unpleasant.
 
 You: And tomorrow?
 
-PeakCast: Wind on the Hochkönig tomorrow is around 14 km/h, with gusts up to
-          29 km/h. Gusts reach 29 km/h, worth checking before you launch.
+PeakCast: Wind on the Hochkönig tomorrow is around 16 km/h, with gusts up to
+          35 km/h. Worth checking before you launch.
 
 You: What about Kaprun?
 
-PeakCast: Wind in Kaprun tomorrow is around 3 km/h, with gusts up to 6 km/h.
+PeakCast: Wind in Kaprun tomorrow is around 3 km/h, with gusts up to 4 km/h.
+          Fog is likely, so do not count on the view or on landmarks.
 ```
 
 Neither follow-up contains a weather word, so the intent classifier cannot
@@ -213,6 +260,24 @@ carry them on its own - *"And tomorrow?"* comes back at p = 0.31 and
 *"What about Kaprun?"* as confident `out_of_scope`. The dialogue manager
 reuses the remembered intent with the new slot instead. See `DEVLOG.md`,
 step 7.
+
+### The user interface (step 8)
+
+```bash
+streamlit run app.py
+```
+
+`app.py` is deliberately thin: it owns the screen and nothing else. Every
+reply comes from `peakcast.dialogue.Bot.respond`, the same code path the
+terminal client and the tests use, so there is no second bot behind the UI
+that the tests do not cover.
+
+The layout is centred and single-column because the target group is on a
+phone: someone at a trailhead is not holding a laptop. Nothing essential lives
+only in the sidebar, which collapses on a narrow screen.
+
+Startup, chat behaviour, the two sidebar switches and the troubleshooting table
+are described in [section 4](#4-setup).
 
 > **Safety note:** the intent classifier labels *"avalanche risk after the fresh
 > snow"* as a precipitation question with high confidence (p = 0.62, well above

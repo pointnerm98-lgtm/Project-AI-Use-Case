@@ -28,7 +28,7 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 from peakcast.intent_classifier import (
@@ -43,7 +43,13 @@ from peakcast.responses import (
     generate_answer,
 )
 from peakcast.safety_guard import check_message
-from peakcast.slots import DaySlot, Place, extract_slots, today_in_vienna
+from peakcast.slots import (
+    MAX_DAY_OFFSET,
+    DaySlot,
+    Place,
+    extract_slots,
+    today_in_vienna,
+)
 from peakcast.weather import ForecastOutOfRangeError, get_forecast
 
 # --- Intents ---------------------------------------------------------------
@@ -128,9 +134,16 @@ OUT_OF_SCOPE_REPLY: str = (
 
 ASK_FOR_PLACE: str = "Which place do you mean?"
 
-# Appended when the user asks beyond the forecast horizon.
+# Sent when the user asks beyond the forecast horizon.
+#
+# Both dates are spelled out on purpose. "next Friday" is genuinely ambiguous
+# in English - the bot reads it as the Friday of the following week, which is a
+# documented convention, not a fact - so naming the date it actually resolved
+# lets the user see the reading and correct it. Naming the last forecastable
+# date as well turns a refusal into something actionable: the user learns what
+# they *can* ask for instead of just what they cannot.
 OUT_OF_RANGE_REPLY: str = (
-    "I can only forecast about a week ahead, so I can't tell you about {day}."
+    "{asked} is too far ahead - I can forecast up to {last}."
 )
 
 
@@ -550,12 +563,14 @@ class Bot:
         except ForecastOutOfRangeError:
             # Not a failure to recover from: the question has an honest
             # answer, and inventing numbers would be worse than saying so.
-            from peakcast.responses import describe_day
+            from peakcast.responses import format_calendar_date
 
+            last_day = self.today + timedelta(days=MAX_DAY_OFFSET)
             return self._finish_turn(
                 state,
                 OUT_OF_RANGE_REPLY.format(
-                    day=describe_day(day, self.today, with_preposition=False)
+                    asked=format_calendar_date(day.target_date),
+                    last=format_calendar_date(last_day),
                 ),
                 intent=intent,
                 confidence=confidence,

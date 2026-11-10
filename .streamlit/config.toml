@@ -1,0 +1,19 @@
+# Streamlit configuration for PeakCast.
+#
+# Only two settings, both deliberate:
+#
+# gatherUsageStats = false
+#   Streamlit sends anonymous usage statistics by default. The project is
+#   coursework shown on a university machine, so it should not make outbound
+#   calls nobody asked for - and it also keeps the startup output clean for a
+#   live demo.
+#
+# toolbarMode = "minimal"
+#   Hides the developer menu ("Rerun", "Clear cache", "Deploy"). The target
+#   group is a hiker on a phone, and the screen is small enough without it.
+
+[browser]
+gatherUsageStats = false
+
+[client]
+toolbarMode = "minimal"

@@ -1334,3 +1334,224 @@ naming a place — the counterpart to "What about Kaprun?" in conversation 1.
 - `Place.matched_text` is kept but the response generator does not use it; the
   display name covers every case met so far. Worth deleting if nothing needs
   it by the end.
+
+---
+
+## Step 8 — Streamlit interface, plus three fixes to step 7 (2026-11-10)
+
+### Fix 1 — hints no longer repeat a value the sentence just gave
+
+The step 7 answers stuttered:
+
+> Wind on the Hochkönig tomorrow is around 14 km/h, with gusts up to 29 km/h.
+> **Gusts reach 29 km/h**, worth checking before you launch.
+
+Two values carried numbers in their hints: gusts and substantial fresh snow.
+`build_hints()` now takes a `stated` set of value kinds, and
+`VALUES_STATED_BY_INTENT` maps each intent to what its template already says —
+`ask_wind` states gusts, `ask_precipitation` states snow depth, `ask_overview`
+states both, `ask_temperature` and `ask_sky` state neither.
+
+The important part of the rule: the hint drops **only the figure**, never the
+advice, because the advice is the part the user cannot derive from the numbers.
+
+> Wind on the Hochkönig tomorrow is around 16 km/h, with gusts up to 35 km/h.
+> **Worth checking before you launch.**
+
+And the figure is still given where it is news rather than a repeat — a
+temperature answer says nothing about wind, so the gust hint keeps its number
+there. There is a test for each direction, plus one asserting the intent map is
+**complete**: the lookup defaults to "states nothing", which is the safe
+direction but would quietly undo the fix for a new intent.
+
+### Fix 2 — out-of-range days name both dates
+
+Before: *"I can only forecast about a week ahead, so I can't tell you about
+Friday."* Which Friday? "next Friday" is genuinely ambiguous in English and the
+bot resolves it by a **documented convention** (the Friday of the following
+week), not by a fact — so the reading it chose has to be visible.
+
+Now:
+
+> Friday 20 November is too far ahead - I can forecast up to Monday 16 November.
+
+Naming the last forecastable date as well turns a refusal into something
+actionable: the user learns what they *can* ask for, not only what they cannot.
+`format_calendar_date()` spells dates as "Friday 13 November", with the day
+number unpadded because that is how a person writes it.
+
+### Fix 3 — the known-defect test is now a strict xfail
+
+`test_known_limitation_quantity_questions_leak_to_a_forecast` asserted the
+*wrong* behaviour, which worked but read as if the project endorsed it. It is
+now `test_quantity_questions_are_out_of_scope`, asserting what the bot
+**should** do, under `@pytest.mark.xfail(strict=True)` with the full
+explanation as the reason.
+
+`strict=True` is the point: if a later data iteration fixes the classifier, the
+test XPASSes and **fails the suite**, forcing the marker to be removed rather
+than letting a fixed defect sit behind a stale exemption.
+
+*(Note: the example transcripts in the step 7 entry above were captured before
+fixes 1 and 2 and show the older hint wording. The README transcript has been
+regenerated; the step 7 entry is left as it was, because it is a record of what
+the bot did that day.)*
+
+### Step 8 — the Streamlit interface
+
+`app.py`, started with `streamlit run app.py`.
+
+**The file is thin on purpose, and that is the main design decision.** It owns
+the screen and nothing else: no intent logic, no slot handling, no forecast
+decisions, no wording. Every reply comes from `Bot.respond`, the same code path
+the terminal client and 279 tests already use. The rule written into the module
+docstring is that `app.py` may *render* what a `BotTurn` contains and may not
+derive anything `dialogue.py` has not already decided — because if the UI could
+decide anything about an answer, there would be two bots, one tested and one on
+screen, and the tested one would not be the one the tutor sees.
+
+#### Built for a phone
+
+The concept's users are at a trailhead, not at a desk. So: `layout="centered"`
+and single column, short messages, nothing needing horizontal space, and the
+sidebar collapsed by default — which is why **nothing essential lives only in
+the sidebar**. A centred layout also reads better on a laptop, where `wide`
+would stretch chat bubbles into unreadable lines.
+
+#### State, and why it lives where it does
+
+Streamlit re-executes the whole script on every interaction, so anything that
+must survive a rerun goes in `st.session_state`. Two separate things are kept
+there, deliberately:
+
+- `history` — the rendered transcript;
+- `dialogue` — the bot's own `DialogueState` (last place, last day, answer
+  count).
+
+They are not the same thing: the transcript is what the screen shows, the
+`DialogueState` is what the bot remembers. Reset has to clear **both**, and
+there is a test for that: clearing only the transcript would leave the next
+question inheriting the old place and answer count.
+
+The bot itself is cached with `st.cache_resource`, not `st.cache_data` — it
+holds a fitted scikit-learn pipeline, which is a live object to share rather
+than a value to copy. Without the cache, Streamlit would reload (or retrain)
+the model on every keystroke. The cache key is `allow_live`, so flipping the
+offline toggle hands back a bot with the new setting instead of silently
+keeping the old one.
+
+#### The example buttons, and a Streamlit detail
+
+The four buttons were chosen to show one capability each rather than to look
+full: summit wind (the paragliding case from the concept), snow at a ski
+resort, a temperature question with a part of day, and a **follow-up** that
+only works because the bot remembers the previous turn.
+
+A clicked button cannot answer in place: Streamlit reruns the script on the
+click, and the answer has to be appended *before* the transcript is drawn. So a
+click stores the question in `session_state.queued` and triggers a rerun, which
+handles it on the way through. The buttons disappear once the conversation is
+under way, because by then they are clutter — and the last one only makes sense
+as a follow-up anyway.
+
+#### The data-source badge
+
+Every answer carries a caption under it: `● live forecast` in green or
+`▲ sample data - not a real forecast` in orange. This is the UI half of a rule
+the whole project is built around, and the reason `WeatherReport` has carried a
+`source` field through three modules: **a fictional forecast must never be able
+to look real.** A caption under the message is harder to skip than a sentence
+inside it.
+
+#### End of conversation
+
+On a goodbye or the tenth answer the input is rendered **disabled rather than
+removed**, so the end of the conversation reads as a state of the page rather
+than as something having broken, and a restart button appears. The sidebar also
+has a reset button that works mid-conversation. A caption warns when three or
+fewer answers remain, so the limit does not arrive as a surprise.
+
+#### First start
+
+If `models/intent_model_iter1.joblib` is missing — which it is on a fresh
+checkout, because it is a git-ignored build artefact — the app trains it inside
+an `st.spinner` so the first second does not look like a hang. This is the
+step 1 to-do reaching the screen it was written for.
+
+#### A bug the smoke test caught immediately
+
+The sidebar offers **"offline demo mode"**; `Bot` takes **`allow_live`**. The
+first version passed `load_bot(offline_mode)` — inverted — so *live* mode
+served sample data and *offline* mode tried the network. It was invisible in
+the code and obvious the moment the badge was asserted: the first smoke-test
+run came back `▲ sample data` with the toggle off. Both directions are now
+pinned by tests, one of them `--live`, and the inversion has a comment at the
+call site.
+
+This is the argument for the badge in miniature: a mislabelled data source is
+exactly the kind of error that a user cannot see and a test can.
+
+#### `.streamlit/config.toml`
+
+Two settings. `gatherUsageStats = false` — Streamlit sends anonymous usage
+statistics by default, and coursework shown on a university machine should not
+make outbound calls nobody asked for; it also keeps the startup output clean
+for a live demo. `toolbarMode = "minimal"` hides the developer menu ("Rerun",
+"Clear cache", "Deploy"), which a hiker on a phone has no use for.
+
+### Testing
+
+**292 tests with no network** (295 with `--live`), of which 13 are the new UI
+smoke tests, plus 1 strict xfail.
+
+They are *smoke* tests on purpose. The bot's behaviour is covered by the 279
+tests against `dialogue.py` and below; repeating any of it through the UI would
+mean two places to update whenever an answer changes. What is left for the UI
+to get wrong is **wiring**, and that is what is checked: the page starts, a
+button and a typed message both reach the bot, a follow-up keeps its context
+(the test that would catch `session_state` being used wrongly), the badge says
+the right thing in both modes, the NLU toggle shows and hides, a goodbye locks
+the input, both reset buttons clear both kinds of state, and the ten-answer
+limit reaches the screen.
+
+Two tests exist because the project has obligations rather than because the
+code might break: one asserts the **disclaimer** is on screen (not a
+replacement for official mountain weather or avalanche reports, with the
+lawinen.at link) and one asserts the **attribution** for Open-Meteo and
+GeoNames CC BY. Those are promises the README makes; a test is how they stay
+true.
+
+Verified beyond `AppTest` as well: `streamlit run app.py` starts the real
+server cleanly, which `AppTest` (an in-process runner) does not prove on its
+own.
+
+### Where the project stands
+
+Every component in the concept's architecture is built and tested:
+
+| Component | Module | Status |
+| --- | --- | --- |
+| Chat UI | `app.py` | ✔ |
+| Dialogue manager | `peakcast/dialogue.py` | ✔ |
+| Safety guard | `peakcast/safety_guard.py` | ✔ |
+| Intent classifier | `peakcast/intent_classifier.py` | ✔ CV 0.803 / test 0.813 |
+| Slot extraction | `peakcast/slots.py` | ✔ place 1.000 / day 1.000 |
+| Weather service | `peakcast/weather.py` | ✔ live + offline fallback |
+| Response generator | `peakcast/responses.py` | ✔ |
+
+### Open points
+
+- **The `out_of_scope` quantity leak** is the one classifier error now visible
+  in normal use, and it is behind a strict xfail. The honest fix is more
+  `out_of_scope` training sentences in that phrasing style, collected from real
+  conversations with the running bot — **not** from
+  `reports/misclassified_*.csv`, which would leak the test set. The app is now
+  the tool that makes collecting them realistic.
+- The optional **sentence-embedding comparison** is still optional, and still
+  not part of the submitted concept. It is now the only thing left that could
+  use remaining time.
+- `Place.matched_text` is still unused by the response generator; the display
+  name has covered every case met so far. Worth deleting if nothing needs it.
+- A **"70 % chance, take the jacket"** hint would use
+  `precipitation_probability_max`, which is fetched and reported but never
+  drives a hint.

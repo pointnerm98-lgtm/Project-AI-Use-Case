@@ -324,33 +324,34 @@ def test_out_of_scope_at_the_start_is_declined(
     assert turn.text == OUT_OF_SCOPE_REPLY
 
 
-def test_known_limitation_quantity_questions_leak_to_a_forecast(
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "Known classifier error, recorded in step 3 and not repairable here. "
+        "'how many people live in Linz' is labelled ask_temperature at "
+        "p = 0.48, above the 0.35 threshold, and 'how high is the Dachstein' "
+        "at p = 0.62: the model latches onto the quantity phrasing 'how "
+        "many' / 'how high'. The dialogue manager cannot second-guess a "
+        "confident classifier, and a rule for these two sentences would be "
+        "fitting the test set. The honest fix is more out_of_scope training "
+        "sentences in that phrasing style, collected from real conversations "
+        "rather than from reports/misclassified_*.csv - the open point "
+        "recorded in step 5. strict=True so that a later data iteration which "
+        "fixes the classifier makes this XPASS and fails the suite, forcing "
+        "this marker to be removed instead of passing unnoticed."
+    ),
+)
+def test_quantity_questions_are_out_of_scope(
     bot: Bot, state: DialogueState
 ) -> None:
-    """Pin a classifier error the dialogue manager cannot repair.
+    """A question about population is not a weather question.
 
-    "how many people live in Linz" is labelled ``ask_temperature`` at p = 0.48
-    - above the 0.35 threshold - and "how high is the Dachstein" at p = 0.62.
-    Both were already recorded as errors in step 3: the model latches onto the
-    quantity phrasing "how many" / "how high".
-
-    The dialogue manager has no way to second-guess a confident classifier
-    here, and inventing a rule for these two sentences would be fitting the
-    test set. The honest fix is more `out_of_scope` training data in that
-    phrasing style, collected from real conversations rather than from the
-    test set - which is the open point recorded in step 5.
-
-    This test asserts the *current, wrong* behaviour on purpose, so that a
-    later data iteration which fixes it makes this test fail and prompts an
-    update rather than passing unnoticed.
+    This is what the bot *should* do. It currently does not, for the reason in
+    the xfail marker above.
     """
     turn = bot.respond(state, "how many people live in Linz")
 
-    assert turn.text != OUT_OF_SCOPE_REPLY, (
-        "if this now passes as out_of_scope, the classifier improved - "
-        "delete this test and the step 3 note that goes with it"
-    )
-    assert turn.intent == "ask_temperature"
+    assert turn.text == OUT_OF_SCOPE_REPLY
 
 
 def test_greeting_is_answered_with_an_example(
@@ -471,17 +472,23 @@ def test_later_offline_answers_use_the_short_note(
 def test_a_day_beyond_the_horizon_is_declined_not_invented(
     bot: Bot, state: DialogueState
 ) -> None:
-    """Nine days out must be refused in words, not answered with demo data.
+    """Beyond the horizon must be refused in words, not answered with demo data.
 
     The network being down justifies sample data; a question about next week
     has an honest answer, and giving numbers instead would be worse.
+
+    Both dates must be spelled out. "next Friday" is genuinely ambiguous in
+    English and the bot resolves it by a documented convention, so naming the
+    date it actually picked lets the user see and correct that reading; naming
+    the last forecastable date tells them what they can ask for instead.
     """
     turn = bot.respond(state, "how cold in Lienz next Friday")
 
-    assert "week ahead" in turn.text
-    assert "°C" not in turn.text
-    # And the wording must not read "about on Friday".
-    assert "about on" not in turn.text
+    # TODAY is Thursday 5 November 2026, so "next Friday" resolves to the 13th
+    # and the forecast reaches six days out, to the 11th.
+    assert "Friday 13 November" in turn.text
+    assert "Wednesday 11 November" in turn.text
+    assert "°C" not in turn.text, "no invented numbers"
 
 
 # --- The bare-slot test, directly ----------------------------------------

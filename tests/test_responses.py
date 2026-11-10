@@ -35,10 +35,12 @@ from peakcast.responses import (
     OFFLINE_NOTE_BRIEF,
     TEMPLATES,
     THUNDERSTORM_CODES,
+    VALUES_STATED_BY_INTENT,
     build_hints,
     describe_day,
     describe_place,
     describe_precipitation,
+    format_calendar_date,
     generate_answer,
     mentions_snow,
     preposition_for,
@@ -277,6 +279,17 @@ def test_weekday_can_be_rendered_without_its_preposition() -> None:
     assert describe_day(a_day(3), TODAY, with_preposition=False) == "Sunday"
 
 
+def test_calendar_date_is_spelled_out_unambiguously() -> None:
+    """Used where "Friday" alone is not enough.
+
+    A question beyond the forecast horizon is exactly that case: "next Friday"
+    is ambiguous in English, so the bot has to show which Friday it meant.
+    The day number is not zero-padded, because that is how a person writes it.
+    """
+    assert format_calendar_date(date(2026, 11, 13)) == "Friday 13 November"
+    assert format_calendar_date(date(2026, 11, 3)) == "Tuesday 3 November"
+
+
 # --- Precipitation ordering: the step 2 decision -------------------------
 
 
@@ -420,6 +433,69 @@ def test_only_one_hint_is_appended_to_an_answer() -> None:
     assert len(build_hints(report, snow_first=False)) > 1
     assert answer.count("Thunderstorm") == 1
     assert "not flying weather" not in answer
+
+
+# --- Hints must not repeat what the sentence already said ----------------
+
+
+def test_gust_hint_drops_the_figure_when_the_answer_already_gave_it() -> None:
+    """A wind answer already states the gusts, so the hint must not repeat them.
+
+    Before this, an answer read: "...with gusts up to 29 km/h. Gusts reach
+    29 km/h, worth checking before you launch." The advice is kept; only the
+    duplicated number goes.
+    """
+    report = a_report(wind_speed_max=14.0, wind_gusts_max=29.0)
+    answer = generate_answer(
+        "ask_wind", report, GLOCKNER, a_day(1), TODAY, rng=SEEDED
+    )
+
+    assert "29 km/h" in answer, "the sentence itself must still give the value"
+    assert answer.count("29 km/h") == 1, "but only once"
+    assert "Worth checking before you launch." in answer
+
+
+def test_gust_hint_keeps_the_figure_when_the_answer_does_not_give_it() -> None:
+    """A temperature answer says nothing about wind, so the figure is news."""
+    report = a_report(wind_gusts_max=29.0)
+    answer = generate_answer(
+        "ask_temperature", report, GLOCKNER, a_day(1), TODAY, rng=SEEDED
+    )
+
+    assert "Gusts reach 29 km/h" in answer
+
+
+def test_strong_gust_hint_also_drops_a_duplicated_figure() -> None:
+    """The stronger variant must de-duplicate too, not only the mild one."""
+    report = a_report(wind_speed_max=60.0, wind_gusts_max=102.0)
+    answer = generate_answer(
+        "ask_overview", report, GLOCKNER, a_day(1), TODAY, rng=SEEDED
+    )
+
+    assert answer.count("102 km/h") == 1
+    assert "not flying weather" in answer
+
+
+def test_snow_hint_drops_the_figure_when_the_answer_already_gave_it() -> None:
+    """A precipitation answer states the snow depth, so the hint must not."""
+    report = a_report(snowfall_sum=22.0, precipitation_probability_max=90)
+    answer = generate_answer(
+        "ask_precipitation", report, GLOCKNER, a_day(1), TODAY,
+        message="how much snow tomorrow", rng=SEEDED,
+    )
+
+    assert answer.count("22 cm") == 1
+    assert "avalanche bulletin" in answer
+
+
+def test_every_weather_intent_has_a_stated_values_entry() -> None:
+    """A missing entry would silently reintroduce the duplication.
+
+    ``VALUES_STATED_BY_INTENT.get(intent, frozenset())`` defaults to "states
+    nothing", which is the safe direction but would quietly undo this fix for
+    a new intent, so the map is required to be complete.
+    """
+    assert set(VALUES_STATED_BY_INTENT) == set(TEMPLATES)
 
 
 def test_hints_can_be_switched_off() -> None:

@@ -1,0 +1,355 @@
+"""PeakCast - Streamlit chat interface.
+
+Run from the project root:
+
+    streamlit run app.py
+
+This file is deliberately **thin**. It owns the screen and nothing else: no
+intent logic, no slot handling, no forecast decisions, no wording. Every reply
+comes from ``peakcast.dialogue.Bot.respond``, which is the same code path the
+terminal client and the tests use.
+
+That separation is the point. If the UI could decide anything about an answer,
+there would be two bots - one tested and one on screen - and the tested one
+would not be the one the tutor sees. So the rule here is: this module may
+*render* what a ``BotTurn`` contains, and may not derive anything from it that
+``dialogue.py`` has not already decided.
+
+Design notes
+------------
+
+* **The target group is on a phone.** Someone at a trailhead is not holding a
+  laptop, so the layout is centred and single-column, the messages are short,
+  and nothing needs horizontal space. The sidebar collapses on a narrow
+  screen, which is why nothing essential lives only there.
+* **The data source is always visible.** Every answer carries a badge saying
+  whether the numbers are a live forecast or sample data. A fictional forecast
+  must never be able to look real, and a caption under the message is harder
+  to miss than a sentence inside it.
+* **NLU details are off by default.** They are evidence for the report, not
+  something a hiker needs, so they live behind a sidebar toggle.
+"""
+
+from __future__ import annotations
+
+import streamlit as st
+
+from peakcast.dialogue import MAX_ANSWERS, Bot, BotTurn, start_conversation
+from peakcast.intent_classifier import ACTIVE_MODEL_PATH
+from peakcast.weather import SOURCE_LIVE, SOURCE_OFFLINE
+
+# --- Page setup ------------------------------------------------------------
+# "centered" rather than "wide": the audience is on a phone, and a wide layout
+# stretches chat bubbles into unreadable lines on a desktop anyway.
+st.set_page_config(
+    page_title="PeakCast",
+    page_icon="⛰️",
+    layout="centered",
+    initial_sidebar_state="collapsed",
+)
+
+# --- Text ------------------------------------------------------------------
+WELCOME: str = (
+    "Hi! I'm **PeakCast**. I answer short weather questions for places in "
+    "Austria - towns, peaks, huts and passes.\n\n"
+    "Ask me about **temperature**, **sky**, **wind and gusts** or "
+    "**rain and snow**. You can follow up without repeating yourself: "
+    "*\"And tomorrow?\"* or *\"What about Kaprun?\"* both work."
+)
+
+# Four buttons, chosen to show off one capability each rather than to look
+# full: a summit wind question (the paragliding case from the concept), a snow
+# question at a ski resort, a temperature question with a part of day, and a
+# follow-up that only works because the bot remembers the previous turn.
+EXAMPLES: tuple[str, ...] = (
+    "How windy is it on the Großglockner tomorrow?",
+    "Will it snow in Sölden this weekend?",
+    "How cold is it in Innsbruck tomorrow morning?",
+    "And what about Zell am See?",
+)
+
+DISCLAIMER: str = (
+    "PeakCast informs - it does **not** replace official mountain weather or "
+    "avalanche reports. For avalanche conditions always use the official "
+    "service of the federal state: [lawinen.at](https://lawinen.at)."
+)
+
+ABOUT: str = (
+    "A weather chatbot for hikers, climbers, ski tourers and paragliders in "
+    "Austria. Plain Python: scikit-learn for the intent classifier, a "
+    "rule-based parser for place and day, and Open-Meteo for the forecast. "
+    "No chatbot framework and no LLM API."
+)
+
+ATTRIBUTION: str = (
+    "**Forecast:** [Open-Meteo](https://open-meteo.com), free for "
+    "non-commercial use.\n\n"
+    "**Places:** [GeoNames](https://www.geonames.org), licensed "
+    "[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)."
+)
+
+CONVERSATION_OVER: str = (
+    "This conversation is finished. Start a new one to keep asking."
+)
+
+# --- Source badges ---------------------------------------------------------
+# Keyed by WeatherReport.source. The offline wording says "sample data" rather
+# than anything softer, because the whole point of carrying the source through
+# three modules is that invented numbers are never presentable as real ones.
+SOURCE_BADGES: dict[str, str] = {
+    SOURCE_LIVE: ":green[● live forecast]",
+    SOURCE_OFFLINE: ":orange[▲ sample data - not a real forecast]",
+}
+
+
+@st.cache_resource(show_spinner=False)
+def load_bot(allow_live: bool) -> Bot:
+    """Build the bot once per process and reuse it.
+
+    ``st.cache_resource`` is the right cache here rather than
+    ``st.cache_data``: a ``Bot`` holds a fitted scikit-learn pipeline, which
+    is a live object to be shared, not a value to be copied. Without this,
+    Streamlit would rebuild it on every single interaction - a model load (or
+    worse, a training run) per keystroke.
+
+    Keyed on ``allow_live`` so flipping the offline toggle gives a bot with
+    the other setting instead of silently keeping the old one.
+
+    Args:
+        allow_live: Whether the bot may call the live weather API.
+
+    Returns:
+        The bot.
+    """
+    return Bot(allow_live=allow_live, verbose_startup=False)
+
+
+def ensure_session() -> None:
+    """Create the conversation state on first run.
+
+    Everything that has to survive a rerun lives in ``st.session_state``:
+    Streamlit re-executes this whole script top to bottom on every
+    interaction, so a plain module-level variable would be reset each time.
+
+    ``history`` holds the rendered turns. The bot's own ``DialogueState``
+    holds what the *bot* remembers (last place, last day, answer count); the
+    two are deliberately separate, because the transcript on screen and the
+    conversation memory are different things.
+    """
+    if "dialogue" not in st.session_state:
+        st.session_state.dialogue = start_conversation()
+    if "history" not in st.session_state:
+        # (role, text, BotTurn | None)
+        st.session_state.history = []
+    if "queued" not in st.session_state:
+        st.session_state.queued = None
+
+
+def reset_conversation() -> None:
+    """Start a fresh conversation, keeping the loaded model."""
+    st.session_state.dialogue = start_conversation()
+    st.session_state.history = []
+    st.session_state.queued = None
+
+
+def render_sidebar() -> tuple[bool, bool]:
+    """Draw the sidebar and return the two toggle values.
+
+    Returns:
+        ``(offline_mode, show_nlu)``.
+    """
+    with st.sidebar:
+        st.subheader("About PeakCast")
+        st.caption(ABOUT)
+
+        st.divider()
+        st.subheader("Settings")
+
+        offline_mode = st.toggle(
+            "Offline demo mode",
+            value=False,
+            help=(
+                "Answer from the built-in sample dataset instead of calling "
+                "the weather API. Useful if the network fails during a "
+                "presentation. Answers are then clearly marked as sample data."
+            ),
+        )
+        show_nlu = st.toggle(
+            "Show NLU details",
+            value=False,
+            help=(
+                "Show the recognised intent, its confidence and the extracted "
+                "place and day under each answer."
+            ),
+        )
+
+        st.divider()
+        # Keyed so the smoke tests can target this button rather than relying
+        # on position: there are two "Start new conversation" buttons, here
+        # and at the end of a finished conversation.
+        if st.button(
+            "Start new conversation",
+            key="reset_sidebar",
+            use_container_width=True,
+        ):
+            reset_conversation()
+            st.rerun()
+
+        st.divider()
+        st.subheader("Important")
+        st.warning(DISCLAIMER)
+
+        st.divider()
+        st.subheader("Data sources")
+        st.caption(ATTRIBUTION)
+
+    return offline_mode, show_nlu
+
+
+def render_nlu_details(turn: BotTurn) -> None:
+    """Show what the NLU decided for one turn.
+
+    Evidence for the report rather than something a user needs, which is why
+    it is behind a toggle and rendered as a caption.
+
+    Args:
+        turn: The turn to describe.
+    """
+    if turn.guard_triggered:
+        st.caption(
+            "**Safety guard** - the message was intercepted before the "
+            "classifier ran."
+        )
+        return
+
+    parts: list[str] = []
+    if turn.intent is not None:
+        parts.append(f"intent `{turn.intent}` (p = {turn.confidence:.2f})")
+    if turn.place is not None:
+        place = f"place **{turn.place.label}**"
+        if turn.place.fuzzy:
+            place += " _(assumed)_"
+        parts.append(place)
+    if turn.day is not None:
+        day = f"day **{turn.day.target_date.isoformat()}**"
+        if turn.day.part_of_day:
+            day += f" ({turn.day.part_of_day})"
+        parts.append(day)
+
+    if parts:
+        st.caption(" · ".join(parts))
+
+
+def render_turn(role: str, text: str, turn: BotTurn | None, show_nlu: bool) -> None:
+    """Draw one chat message, with its badge and optional details.
+
+    Args:
+        role: ``"user"`` or ``"assistant"``.
+        text: The message text.
+        turn: The ``BotTurn`` behind an assistant message, else ``None``.
+        show_nlu: Whether to show the NLU details.
+    """
+    avatar = "🧑" if role == "user" else "⛰️"
+    with st.chat_message(role, avatar=avatar):
+        st.markdown(text)
+
+        if turn is not None and turn.source:
+            st.caption(SOURCE_BADGES.get(turn.source, turn.source))
+        if turn is not None and show_nlu:
+            render_nlu_details(turn)
+
+
+def handle_message(bot: Bot, message: str) -> None:
+    """Send one message to the bot and record both sides of the exchange.
+
+    Args:
+        bot: The bot.
+        message: What the user said.
+    """
+    st.session_state.history.append(("user", message, None))
+    turn = bot.respond(st.session_state.dialogue, message)
+    st.session_state.history.append(("assistant", turn.text, turn))
+
+
+def main() -> None:
+    """Draw the page."""
+    ensure_session()
+    offline_mode, show_nlu = render_sidebar()
+
+    st.title("⛰️ PeakCast")
+    st.caption("Weather for alpine sports in Austria")
+
+    # On a fresh checkout there is no trained model: models/*.joblib is
+    # git-ignored because it is a build artefact. The bot trains one itself,
+    # which takes about a second - the spinner is there so the first start
+    # does not look like a hang.
+    # Note the inversion: the sidebar offers "offline demo mode", the Bot
+    # takes "allow_live". Getting this the wrong way round silently served
+    # sample data in live mode, which the badge made visible and the smoke
+    # test now pins.
+    allow_live = not offline_mode
+
+    if not ACTIVE_MODEL_PATH.exists():
+        with st.spinner(
+            "First start: training the intent classifier (about a second) ..."
+        ):
+            bot = load_bot(allow_live)
+    else:
+        bot = load_bot(allow_live)
+
+    state = st.session_state.dialogue
+
+    # --- The transcript
+    if not st.session_state.history:
+        with st.chat_message("assistant", avatar="⛰️"):
+            st.markdown(WELCOME)
+
+    for role, text, turn in st.session_state.history:
+        render_turn(role, text, turn, show_nlu)
+
+    # --- A message queued by an example button on the previous run.
+    # The buttons cannot answer in place: Streamlit reruns the script when one
+    # is clicked, and the answer has to be appended before the transcript is
+    # drawn. So a click stores the question and triggers a rerun, and it is
+    # handled here on the way through.
+    if st.session_state.queued is not None:
+        queued = st.session_state.queued
+        st.session_state.queued = None
+        handle_message(bot, queued)
+        st.rerun()
+
+    # --- Example questions, while the conversation is still young.
+    # They disappear once the user is talking, because by then they are
+    # clutter - and the last one only makes sense as a follow-up anyway.
+    if not state.finished and len(st.session_state.history) < 2:
+        st.caption("Try one of these:")
+        for index, example in enumerate(EXAMPLES):
+            if st.button(example, key=f"example_{index}", use_container_width=True):
+                st.session_state.queued = example
+                st.rerun()
+
+    # --- Input, or the end of the conversation
+    if state.finished:
+        st.info(CONVERSATION_OVER)
+        if st.button(
+            "Start new conversation", key="reset_main", type="primary"
+        ):
+            reset_conversation()
+            st.rerun()
+        # The input is rendered disabled rather than hidden, so the end of the
+        # conversation reads as a state of the page rather than as something
+        # breaking.
+        st.chat_input("Conversation finished", disabled=True)
+    else:
+        remaining = MAX_ANSWERS - state.answers_given
+        if 0 < remaining <= 3:
+            st.caption(f"{remaining} answer(s) left in this conversation.")
+
+        message = st.chat_input("Ask about the weather in Austria ...")
+        if message:
+            handle_message(bot, message)
+            st.rerun()
+
+
+if __name__ == "__main__":
+    main()

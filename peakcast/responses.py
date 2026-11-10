@@ -110,6 +110,30 @@ PART_PHRASES: dict[str, str] = {
     PART_NIGHT: "overnight",
 }
 
+# --- Which values the answer sentence already states ----------------------
+# A hint that repeats a number the sentence just gave reads like a stutter:
+#
+#   "Wind on the Hochkoenig tomorrow is around 14 km/h, with gusts up to
+#    29 km/h. Gusts reach 29 km/h, worth checking before you launch."
+#
+# So the hints are told which kinds of value the answer already carries, and
+# drop the figure when it would be a repeat. They never drop the *advice* -
+# only the number - because the advice is the part the user cannot derive.
+#
+# Keyed by intent, because the intent decides which template was used and
+# therefore which values appear. `ask_overview` states almost everything,
+# which is exactly where the stutter was most visible.
+VALUE_GUSTS: str = "gusts"
+VALUE_SNOW: str = "snow"
+
+VALUES_STATED_BY_INTENT: dict[str, frozenset[str]] = {
+    ASK_TEMPERATURE: frozenset(),
+    ASK_SKY: frozenset(),
+    ASK_WIND: frozenset({VALUE_GUSTS}),
+    ASK_PRECIPITATION: frozenset({VALUE_SNOW}),
+    ASK_OVERVIEW: frozenset({VALUE_GUSTS, VALUE_SNOW}),
+}
+
 # --- Prepositions ----------------------------------------------------------
 # You are "in Innsbruck" but "on the Großglockner", and a bot that says "in
 # Großglockner" sounds like it has never been outside. English picks the
@@ -213,6 +237,27 @@ def describe_day(day: DaySlot, today: date, with_preposition: bool = True) -> st
     if day.part_of_day:
         words = f"{words} {PART_PHRASES[day.part_of_day]}"
     return words
+
+
+def format_calendar_date(day: date) -> str:
+    """Spell a date out as "Friday 13 November".
+
+    Used where the bot has to be unambiguous rather than friendly. "Friday" on
+    its own is not enough when the point is that the user and the bot may mean
+    different Fridays - which is exactly the case for a question beyond the
+    forecast horizon, where "next Friday" is genuinely ambiguous in English and
+    the bot's reading of it should be visible.
+
+    The day number is not zero-padded, because "Friday 3 November" is how a
+    person writes it.
+
+    Args:
+        day: The date.
+
+    Returns:
+        The spelled-out date.
+    """
+    return f"{day.strftime('%A')} {day.day} {day.strftime('%B')}"
 
 
 def describe_place(place: Place) -> str:
@@ -367,7 +412,11 @@ def describe_precipitation(report: WeatherReport, snow_first: bool) -> str:
     return phrase
 
 
-def build_hints(report: WeatherReport, snow_first: bool) -> list[str]:
+def build_hints(
+    report: WeatherReport,
+    snow_first: bool,
+    stated: frozenset[str] = frozenset(),
+) -> list[str]:
     """Produce the outdoor hints that apply to this forecast.
 
     Rules only, with the thresholds named at the top of the module and marked
@@ -379,6 +428,9 @@ def build_hints(report: WeatherReport, snow_first: bool) -> list[str]:
         report: The forecast.
         snow_first: Whether the user asked about snow, which promotes the
             fresh-snow hint.
+        stated: The kinds of value the answer sentence already gives (see
+            ``VALUES_STATED_BY_INTENT``). A hint that would repeat one of them
+            drops the figure and keeps the advice.
 
     Returns:
         Hint sentences, most important first.
@@ -394,21 +446,29 @@ def build_hints(report: WeatherReport, snow_first: bool) -> list[str]:
 
     # 2. Gusts. The concept names gusts as the value that decides whether a
     #    paraglider launches, so this hint is phrased for that reader.
+    gusts_already_said = VALUE_GUSTS in stated
     if report.wind_gusts_max >= GUST_STRONG_KMH:
         hints.append(
-            f"Gusts to {report.wind_gusts_max:.0f} km/h are strong - "
+            "That is not flying weather, and exposed ridges will be unpleasant."
+            if gusts_already_said
+            else f"Gusts to {report.wind_gusts_max:.0f} km/h are strong - "
             "not flying weather, and exposed ridges will be unpleasant."
         )
     elif report.wind_gusts_max >= GUST_NOTABLE_KMH:
         hints.append(
-            f"Gusts reach {report.wind_gusts_max:.0f} km/h, "
+            "Worth checking before you launch."
+            if gusts_already_said
+            else f"Gusts reach {report.wind_gusts_max:.0f} km/h, "
             "worth checking before you launch."
         )
 
     # 3. Fresh snow, promoted when the question was about snow.
     if report.snowfall_sum >= FRESH_SNOW_SUBSTANTIAL_CM:
         hints.append(
-            f"{report.snowfall_sum:.0f} cm of new snow changes the day - "
+            "That much new snow changes the day - and it is also why the "
+            "avalanche bulletin matters more than I do."
+            if VALUE_SNOW in stated
+            else f"{report.snowfall_sum:.0f} cm of new snow changes the day - "
             "and it is also why the avalanche bulletin matters more than I do."
         )
     elif report.snowfall_sum >= FRESH_SNOW_NOTABLE_CM and snow_first:
@@ -515,7 +575,9 @@ def generate_answer(
     sentences = [rng.choice(templates).format(**values)]
 
     if include_hint:
-        hints = build_hints(report, snow_first)
+        hints = build_hints(
+            report, snow_first, stated=VALUES_STATED_BY_INTENT.get(intent, frozenset())
+        )
         if hints:
             # One hint only. Two is a lecture, and the list is ordered so the
             # most consequential one is the one that survives.
