@@ -64,24 +64,29 @@ st.set_page_config(
 )
 
 # --- Text ------------------------------------------------------------------
+# Two short lines and nothing more: the start screen has to fit on a phone
+# without scrolling, and the suggestions below it show how to ask better than
+# a paragraph describing it would.
 WELCOME: str = (
-    "Hi! I'm **PeakCast**. I answer short weather questions for places in "
-    "Austria - towns, peaks, huts and passes.\n\n"
-    "Ask me about **temperature**, **sky**, **wind and gusts** or "
-    "**rain and snow**. You can follow up without repeating yourself: "
-    "*\"And tomorrow?\"* or *\"What about Kaprun?\"* both work."
+    "Hi! I'm **PeakCast** - short weather answers for towns, peaks, huts and "
+    "passes in **Austria**."
 )
 
-# Four buttons, chosen to show off one capability each rather than to look
-# full: a summit wind question (the paragliding case from the concept), a snow
-# question at a ski resort, a temperature question with a part of day, and a
-# follow-up that only works because the bot remembers the previous turn.
-EXAMPLES: tuple[str, ...] = (
-    "How windy is it on the Großglockner tomorrow?",
-    "Will it snow in Sölden this weekend?",
-    "How cold is it in Innsbruck tomorrow morning?",
-    "And what about Zell am See?",
+# Shown as compact chips while the conversation is empty. Three, each showing
+# off one capability: summit wind (the paragliding case from the concept),
+# snow at a ski resort over a range of days, and a temperature question with
+# a part of day. They are kept short so each fits on one row of a
+# 390 px phone. No follow-up example any more: the chips are only shown
+# before the first message, where a follow-up has nothing to follow.
+SUGGESTIONS: tuple[str, ...] = (
+    "Wind on the Großglockner tomorrow?",
+    "Snow in Sölden this weekend?",
+    "How cold is Innsbruck tomorrow morning?",
 )
+
+# Widget key of the suggestion chips. Named because the click callback has to
+# read and clear it, and the smoke tests target it.
+SUGGESTIONS_KEY: str = "suggestions"
 
 DISCLAIMER: str = (
     "PeakCast informs - it does **not** replace official mountain weather or "
@@ -201,6 +206,37 @@ def reset_conversation() -> None:
     st.session_state.dialogue = start_conversation()
     st.session_state.history = []
     st.session_state.queued = None
+
+
+def queue_suggestion() -> None:
+    """Queue the clicked suggestion chip as the next user message.
+
+    Runs as the chips' ``on_change`` callback, i.e. before the script reruns.
+    The chip's value is cleared again straight away, so a chip never stays
+    highlighted and the same suggestion can be picked again after a reset.
+    The queued text is then handled exactly like a typed message.
+    """
+    choice = st.session_state.get(SUGGESTIONS_KEY)
+    if choice:
+        st.session_state.queued = choice
+    st.session_state[SUGGESTIONS_KEY] = None
+
+
+def render_suggestions() -> None:
+    """Draw the example questions as compact chips.
+
+    ``st.pills`` rather than a column of full-width buttons: chips wrap into
+    one or two rows on a phone, where four stacked buttons used to push the
+    page past the bottom of the screen.
+    """
+    st.pills(
+        "Suggestions",
+        SUGGESTIONS,
+        selection_mode="single",
+        key=SUGGESTIONS_KEY,
+        on_change=queue_suggestion,
+        label_visibility="collapsed",
+    )
 
 
 def collect_turn_records() -> list[TurnRecord]:
@@ -426,8 +462,9 @@ def main() -> None:
     ensure_session()
     offline_mode, show_nlu = render_sidebar()
 
+    # No subtitle caption: the welcome line says the same thing, and on a
+    # phone every line above the fold counts.
     st.title("⛰️ PeakCast")
-    st.caption("Weather for alpine sports in Austria")
 
     # Note the inversion: the sidebar offers "offline demo mode", the Bot
     # takes "allow_live". Getting this the wrong way round silently served
@@ -460,26 +497,26 @@ def main() -> None:
             index, entry["role"], entry["text"], entry["turn"], show_nlu
         )
 
-    # --- A message queued by an example button on the previous run.
-    # The buttons cannot answer in place: Streamlit reruns the script when one
-    # is clicked, and the answer has to be appended before the transcript is
-    # drawn. So a click stores the question and triggers a rerun, and it is
-    # handled here on the way through.
+    # --- A message queued by a suggestion chip.
+    # The chip cannot answer in place: its callback runs before the script
+    # reruns, and the bot needs the loaded model, which only exists inside
+    # this run. So the callback stores the question and it is handled here,
+    # before anything else is drawn below the transcript.
     if st.session_state.queued is not None:
         queued = st.session_state.queued
         st.session_state.queued = None
         handle_message(bot, queued)
         st.rerun()
 
-    # --- Example questions, while the conversation is still young.
-    # They disappear once the user is talking, because by then they are
-    # clutter - and the last one only makes sense as a follow-up anyway.
-    if not state.finished and len(st.session_state.history) < 2:
-        st.caption("Try one of these:")
-        for index, example in enumerate(EXAMPLES):
-            if st.button(example, key=f"example_{index}", use_container_width=True):
-                st.session_state.queued = example
-                st.rerun()
+    # --- Suggestions, only while the conversation is empty.
+    # Drawn in the chat area, where the history will appear, rather than as a
+    # block of their own: Streamlit cannot tell when the chat input gets
+    # focus, so "show on focus" is not possible without a custom component.
+    # Once the first message is sent, typed or clicked, they are gone for the
+    # rest of the conversation; a reset empties the history and brings them
+    # back.
+    if not st.session_state.history:
+        render_suggestions()
 
     # --- Input, or the end of the conversation
     if state.finished:

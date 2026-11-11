@@ -1783,3 +1783,69 @@ only acceptable *because* it is labelled.
 - The optional sentence-embedding comparison remains optional and remains not
   part of the submitted concept.
 - `Place.matched_text` is still unused by the response generator.
+
+---
+
+## Step 10 — A shorter start screen (2026-11-11)
+
+After the deploy, the start screen did not fit on a phone: a title, a subtitle,
+a three-sentence welcome and four full-width example buttons stacked on top of
+each other pushed the bottom of the page off the screen at ~390 px width. A
+user who opens the link at a trailhead should see the whole thing at once.
+
+### What changed (layout only — `app.py`)
+
+- **Welcome cut to one line:** what PeakCast does and that it covers Austria.
+  The follow-up hint (*"And tomorrow?"*) is gone from the welcome; follow-ups
+  still work, they are just no longer advertised on the first screen.
+- **Subtitle caption removed** under the title — it repeated the welcome.
+- **"Try one of these" button block removed.** In its place, while the history
+  is empty, three suggestions are shown as `st.pills` chips in the chat area,
+  i.e. where the history appears later, directly above the input. The pinned
+  Streamlit 1.67 has `st.pills`, so no custom component was needed.
+- **Three suggestions instead of four**, shortened so they wrap to at most
+  three short rows on a phone: summit wind, snow over a weekend, temperature
+  with a part of day. The old fourth example (*"And what about Zell am See?"*)
+  was a follow-up, which makes no sense when the chips are only shown before
+  the first message.
+- **A chip sends its question verbatim**, through the same queue as before:
+  the chip's `on_change` callback stores the text in `session_state.queued`
+  and clears the chip's own value (so it never stays highlighted); the next
+  run hands it to `handle_message` exactly like a typed message.
+- **Visibility rule:** chips are shown iff the history is empty. After the
+  first message (typed or clicked) they are gone for the rest of the
+  conversation; "Start new conversation" empties the history and they return.
+
+Why not "show the suggestions when the input gets focus": Streamlit cannot
+observe focus on `st.chat_input`, and a custom JS component for that would be
+more code than the rest of the UI. The empty chat area is where nothing else
+is anyway.
+
+No bot logic moved: `dialogue.py` is untouched, and the app still only renders
+what a `BotTurn` contains.
+
+### Checked on a phone-sized screen
+
+Headless Chrome via the DevTools protocol, viewport 390 × 844, mobile
+emulation: the document's scroll height equals the viewport height (844), so
+the start screen needs no scrolling. Title, welcome line, three chips and the
+input are all visible; clicking a chip produced the user message plus an
+answer, and the chips were gone afterwards. At 1280 px the chips sit on two
+rows.
+
+### Testing
+
+**327 tests with no network**, plus 1 strict xfail. `test_app.py` changes:
+
+- welcome test now checks the chips (3–4, wind and snow among them) and that
+  the old `example_*` buttons are gone;
+- *a chip sends its question* — the user message is the chip text verbatim;
+- *a chip answer matches the typed answer* — compared on the NLU caption
+  (intent, confidence, place, day), not on the answer text, because the
+  response generator varies its wording. The first version compared text and
+  failed intermittently for exactly that reason;
+- *suggestions disappear after the first message*, clicked and typed, and stay
+  gone on a follow-up;
+- both reset tests now check that the chips come back, and the sidebar-reset
+  test also checks that a chip works in the new conversation.
+

@@ -120,8 +120,9 @@ chat. Nothing has to be run by hand beforehand: no training script, no data
 download. The place list (`data/places_at.csv`) and the offline demo forecasts
 are committed.
 
-**The chat.** Four example questions are offered as buttons, so you can start
-without typing. Follow-ups work without repeating yourself - ask
+**The chat.** Before the first question, three example questions are offered
+as small chips above the input; tap one to send it, or type your own. The chips
+disappear once the conversation has started. Follow-ups work without repeating yourself - ask
 *"How windy is it on the Großglockner tomorrow?"*, then just *"And tomorrow?"*
 or *"What about Kaprun?"*. Every answer is labelled with where its numbers came
 from: **live forecast** or **sample data**. A conversation ends after ten

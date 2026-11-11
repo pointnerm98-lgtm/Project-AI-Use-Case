@@ -32,6 +32,10 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 APP_FILE = str(PROJECT_ROOT / "app.py")
 
+# Widget key of the suggestion chips in app.py. Duplicated rather than
+# imported: importing app.py would execute the page outside AppTest.
+SUGGESTIONS_KEY: str = "suggestions"
+
 # Generous, because the very first run in a session can include training the
 # intent model from scratch.
 TIMEOUT_SECONDS: int = 240
@@ -112,46 +116,105 @@ def test_app_starts_without_an_exception() -> None:
     assert app.title[0].value == "⛰️ PeakCast"
 
 
-def test_the_welcome_message_and_examples_are_shown_first() -> None:
+def suggestion_chips(app: AppTest) -> list[str]:
+    """Return the suggestion chips currently on the page.
+
+    Args:
+        app: The running app.
+
+    Returns:
+        The chip labels, or an empty list if no chips are shown.
+    """
+    return [
+        option
+        for widget in app.pills
+        if widget.key == SUGGESTIONS_KEY
+        for option in widget.options
+    ]
+
+
+def test_the_welcome_message_and_suggestions_are_shown_first() -> None:
     """A new visitor must see what the bot does and how to ask.
 
-    The examples are buttons rather than text so that someone on a phone can
-    start without typing a sentence with umlauts in it.
+    The suggestions are clickable chips rather than text so that someone on a
+    phone can start without typing a sentence with umlauts in it. The welcome
+    is one short message - the start screen has to fit on a phone.
     """
     app = start_app(offline=True)
 
     welcome = assistant_texts(app)
     assert len(welcome) == 1
     assert "PeakCast" in welcome[0]
+    assert "Austria" in welcome[0]
 
-    labels = [button.label for button in app.button]
-    assert any("Großglockner" in label for label in labels)
-    assert any("snow" in label.lower() for label in labels)
+    chips = suggestion_chips(app)
+    assert 3 <= len(chips) <= 4
+    assert any("Großglockner" in chip for chip in chips)
+    assert any("snow" in chip.lower() for chip in chips)
+
+    # The old block of full-width example buttons must be gone.
+    assert not [b for b in app.button if str(b.key).startswith("example_")]
 
 
 # --- A question reaches the bot -------------------------------------------
 
 
-def test_an_example_question_gets_an_answer() -> None:
-    """Clicking an example must produce a real answer from the bot.
+def test_a_suggestion_chip_sends_its_question() -> None:
+    """Clicking a chip must behave exactly like typing that question.
 
-    The click cannot answer in place - Streamlit reruns the script - so the
-    question is queued and handled on the next run. That indirection is
-    exactly the kind of wiring a smoke test is for.
+    The click cannot answer in place - the callback runs before the script
+    reruns - so the question is queued and handled on the next run. That
+    indirection is exactly the kind of wiring a smoke test is for.
     """
     app = start_app(offline=True)
-    app.button[0].click().run()
+    chip = next(c for c in suggestion_chips(app) if "Großglockner" in c)
+    app.pills(key=SUGGESTIONS_KEY).set_value(chip).run()
 
     assert not app.exception
 
     messages = app.chat_message
     assert len(messages) == 2
     assert messages[0].name == "user"
+    assert messages[0].markdown[0].value == chip, "sent verbatim"
     assert messages[1].name == "assistant"
 
     answer = assistant_texts(app)[-1]
     assert "Großglockner" in answer
     assert "km/h" in answer, "a wind question must come back with wind values"
+
+
+def test_a_chip_answer_matches_the_typed_answer() -> None:
+    """A chip must not take a different path through the bot than typing.
+
+    Compared on the NLU caption (intent, confidence, place, day) rather than
+    the answer text, because the response generator varies its wording.
+    """
+    clicked = start_app(offline=True, show_nlu=True)
+    chip = suggestion_chips(clicked)[0]
+    clicked.pills(key=SUGGESTIONS_KEY).set_value(chip).run()
+
+    typed = start_app(offline=True, show_nlu=True)
+    typed.chat_input[0].set_value(chip).run()
+
+    def nlu(app: AppTest) -> list[str]:
+        return [c for c in captions_of(app) if "intent" in c]
+
+    assert nlu(clicked), "the NLU caption should be shown"
+    assert nlu(clicked) == nlu(typed)
+
+
+def test_suggestions_disappear_after_the_first_message() -> None:
+    """Once the conversation has started, the chips are clutter."""
+    app = start_app(offline=True)
+    app.pills(key=SUGGESTIONS_KEY).set_value(suggestion_chips(app)[1]).run()
+    assert not suggestion_chips(app), "gone after a clicked question"
+
+    app = start_app(offline=True)
+    app.chat_input[0].set_value("temperature in Lienz tomorrow").run()
+    assert not suggestion_chips(app), "gone after a typed question"
+
+    app.chat_input[0].set_value("and on Friday?").run()
+    assert not suggestion_chips(app), "and they stay gone"
 
 
 def test_a_typed_question_gets_an_answer() -> None:
@@ -277,9 +340,9 @@ def test_reset_clears_the_conversation() -> None:
 
     assert not app.exception
     assert app.chat_input[0].disabled is False
-    # Back to the welcome message alone, with the examples offered again.
+    # Back to the welcome message alone, with the suggestions offered again.
     assert len(app.chat_message) == 1
-    assert any("Großglockner" in button.label for button in app.button)
+    assert any("Großglockner" in chip for chip in suggestion_chips(app))
 
 
 def test_sidebar_reset_also_works_mid_conversation() -> None:
@@ -292,6 +355,12 @@ def test_sidebar_reset_also_works_mid_conversation() -> None:
 
     assert not app.exception
     assert len(app.chat_message) == 1
+    assert suggestion_chips(app), "the suggestions come back after a reset"
+
+    # And a chip still works in the new conversation.
+    app.pills(key=SUGGESTIONS_KEY).set_value(suggestion_chips(app)[0]).run()
+    assert not app.exception
+    assert len(app.chat_message) == 2
 
 
 def test_the_answer_limit_ends_the_conversation_in_the_ui() -> None:
