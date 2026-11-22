@@ -1,0 +1,65 @@
+model,exam,text,true,predicted,confidence
+baseline,exam1,is it mild up at the Krippenstein,ask_temperature,ask_wind,0.20
+baseline,exam1,whats the thermometer saying in Dornbirn,ask_temperature,ask_overview,0.27
+baseline,exam1,expected highs and lows in Spittal an der Drau on Sunday,ask_temperature,ask_precipitation,0.17
+baseline,exam1,will it be sunnyy at the Katschberg on Friday,ask_sky,ask_precipitation,0.27
+baseline,exam1,is there a lot of air movement on the Ötscher,ask_wind,ask_sky,0.19
+baseline,exam1,tell me about gust activity at the Sonnwendjoch,ask_wind,out_of_scope,0.20
+baseline,exam1,will there be a foehn storm in the Inn valley tomorrow,ask_wind,ask_sky,0.24
+baseline,exam1,is it drizzling in Puchberg am Schneeberg right now,ask_precipitation,ask_temperature,0.21
+baseline,exam1,do I need an umbrella in Gmunden today,ask_precipitation,out_of_scope,0.22
+baseline,exam1,is there powder at the Axamer Lizum tomorrow,ask_precipitation,ask_wind,0.30
+baseline,exam1,what kind of day is it in Hermagor,ask_overview,ask_temperature,0.20
+baseline,exam1,is it a nice day in Dornbirn today,ask_overview,ask_sky,0.17
+baseline,exam1,gday,greet,out_of_scope,0.16
+baseline,exam1,hiya,greet,out_of_scope,0.16
+baseline,exam1,have a good evening,goodbye,greet,0.35
+baseline,exam1,how many people live in Linz,out_of_scope,ask_temperature,0.27
+baseline,exam1,are the lifts running at the Turracher Höhe,out_of_scope,ask_wind,0.25
+baseline,exam1,how high is the Dachstein,out_of_scope,ask_temperature,0.19
+baseline,exam2,What's the expected high and low for Villach the day after tomorrow?,ask_temperature,ask_overview,0.16
+baseline,exam2,"Temperatures at the Patscherkofel this weekend, please.",ask_temperature,ask_wind,0.22
+baseline,exam2,How overcast will it be above Hallstatt on Thursday?,ask_sky,ask_precipitation,0.22
+baseline,exam2,Do you expect strong winds along the Großglockner road tomorrow?,ask_wind,out_of_scope,0.22
+baseline,exam2,How breezy will it be at the Hohe Wand this afternoon?,ask_wind,ask_precipitation,0.25
+baseline,exam2,Will there be drizzle in Bregenz in the morning?,ask_precipitation,ask_sky,0.24
+baseline,exam2,Hi! What kind of things can you help me with?,greet,out_of_scope,0.38
+baseline,exam2,Is the Brenner motorway congested right now?,out_of_scope,ask_sky,0.19
+iteration 1,exam1,whats the thermometer saying in Dornbirn,ask_temperature,ask_overview,0.50
+iteration 1,exam1,expected highs and lows in Spittal an der Drau on Sunday,ask_temperature,ask_precipitation,0.33
+iteration 1,exam1,is there a lot of air movement on the Ötscher,ask_wind,ask_sky,0.24
+iteration 1,exam1,tell me about gust activity at the Sonnwendjoch,ask_wind,out_of_scope,0.37
+iteration 1,exam1,will there be a foehn storm in the Inn valley tomorrow,ask_wind,ask_sky,0.48
+iteration 1,exam1,is it drizzling in Puchberg am Schneeberg right now,ask_precipitation,ask_temperature,0.30
+iteration 1,exam1,do I need an umbrella in Gmunden today,ask_precipitation,out_of_scope,0.44
+iteration 1,exam1,is there powder at the Axamer Lizum tomorrow,ask_precipitation,ask_wind,0.38
+iteration 1,exam1,what kind of day is it in Hermagor,ask_overview,out_of_scope,0.32
+iteration 1,exam1,is it a nice day in Dornbirn today,ask_overview,ask_sky,0.23
+iteration 1,exam1,gday,greet,ask_precipitation,0.20
+iteration 1,exam1,have a good evening,goodbye,greet,0.80
+iteration 1,exam1,how many people live in Linz,out_of_scope,ask_temperature,0.48
+iteration 1,exam1,are the lifts running at the Turracher Höhe,out_of_scope,ask_wind,0.42
+iteration 1,exam1,how high is the Dachstein,out_of_scope,ask_temperature,0.62
+iteration 1,exam2,What's the expected high and low for Villach the day after tomorrow?,ask_temperature,ask_overview,0.31
+iteration 1,exam2,Hi! What kind of things can you help me with?,greet,out_of_scope,0.76
+iteration 1,exam2,"That's everything I needed, take care.",goodbye,out_of_scope,0.23
+iteration 1,exam2,Is the Brenner motorway congested right now?,out_of_scope,ask_sky,0.31
+iteration 2,exam1,whats the thermometer saying in Dornbirn,ask_temperature,ask_overview,0.59
+iteration 2,exam1,expected highs and lows in Spittal an der Drau on Sunday,ask_temperature,ask_precipitation,0.32
+iteration 2,exam1,is there a lot of air movement on the Ötscher,ask_wind,out_of_scope,0.25
+iteration 2,exam1,tell me about gust activity at the Sonnwendjoch,ask_wind,out_of_scope,0.39
+iteration 2,exam1,will there be a foehn storm in the Inn valley tomorrow,ask_wind,ask_sky,0.47
+iteration 2,exam1,is it drizzling in Puchberg am Schneeberg right now,ask_precipitation,ask_temperature,0.28
+iteration 2,exam1,do I need an umbrella in Gmunden today,ask_precipitation,out_of_scope,0.35
+iteration 2,exam1,is there powder at the Axamer Lizum tomorrow,ask_precipitation,ask_wind,0.37
+iteration 2,exam1,what kind of day is it in Hermagor,ask_overview,ask_wind,0.25
+iteration 2,exam1,is it a nice day in Dornbirn today,ask_overview,ask_sky,0.23
+iteration 2,exam1,gotta go now,goodbye,greet,0.25
+iteration 2,exam1,ok im off,goodbye,out_of_scope,0.28
+iteration 2,exam1,have a good evening,goodbye,greet,0.80
+iteration 2,exam1,how many people live in Linz,out_of_scope,ask_temperature,0.38
+iteration 2,exam1,are the lifts running at the Turracher Höhe,out_of_scope,ask_wind,0.34
+iteration 2,exam1,how high is the Dachstein,out_of_scope,ask_temperature,0.59
+iteration 2,exam2,What's the expected high and low for Villach the day after tomorrow?,ask_temperature,ask_overview,0.36
+iteration 2,exam2,"That's everything I needed, take care.",goodbye,out_of_scope,0.22
+iteration 2,exam2,Is the Brenner motorway congested right now?,out_of_scope,ask_sky,0.29

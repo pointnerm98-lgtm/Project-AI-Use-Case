@@ -1,0 +1,339 @@
+{
+  "evaluated_on": "2026-11-22",
+  "confidence_threshold_in_use": 0.35,
+  "exam1": "intents_test.csv",
+  "exam2": "intents_test_round2.csv",
+  "note": "CV is on each model's own training data, so iteration 2's CV is on a larger set and not strictly comparable to the earlier CV scores. Exam 2 has 5 sentences per intent: one error moves an intent's recall by 20 points.",
+  "models": {
+    "baseline": {
+      "training_files": [
+        "intents_train.csv"
+      ],
+      "cv_mean_accuracy": 0.6781,
+      "cv_std_accuracy": 0.0689,
+      "cv_fold_scores": [
+        0.7031,
+        0.5625,
+        0.7344,
+        0.75,
+        0.6406
+      ],
+      "n_training_sentences": 320,
+      "threshold_analysis": [
+        {
+          "threshold": 0.2,
+          "caught_errors": 54,
+          "lost_answers": 28,
+          "remaining_errors": 49,
+          "error_catch_rate": 0.524,
+          "correct_answer_loss_rate": 0.129
+        },
+        {
+          "threshold": 0.25,
+          "caught_errors": 88,
+          "lost_answers": 92,
+          "remaining_errors": 15,
+          "error_catch_rate": 0.854,
+          "correct_answer_loss_rate": 0.424
+        },
+        {
+          "threshold": 0.3,
+          "caught_errors": 101,
+          "lost_answers": 130,
+          "remaining_errors": 2,
+          "error_catch_rate": 0.981,
+          "correct_answer_loss_rate": 0.599
+        },
+        {
+          "threshold": 0.35,
+          "caught_errors": 102,
+          "lost_answers": 153,
+          "remaining_errors": 1,
+          "error_catch_rate": 0.99,
+          "correct_answer_loss_rate": 0.705
+        },
+        {
+          "threshold": 0.4,
+          "caught_errors": 103,
+          "lost_answers": 171,
+          "remaining_errors": 0,
+          "error_catch_rate": 1.0,
+          "correct_answer_loss_rate": 0.788
+        },
+        {
+          "threshold": 0.45,
+          "caught_errors": 103,
+          "lost_answers": 186,
+          "remaining_errors": 0,
+          "error_catch_rate": 1.0,
+          "correct_answer_loss_rate": 0.857
+        },
+        {
+          "threshold": 0.5,
+          "caught_errors": 103,
+          "lost_answers": 198,
+          "remaining_errors": 0,
+          "error_catch_rate": 1.0,
+          "correct_answer_loss_rate": 0.912
+        },
+        {
+          "threshold": 0.55,
+          "caught_errors": 103,
+          "lost_answers": 208,
+          "remaining_errors": 0,
+          "error_catch_rate": 1.0,
+          "correct_answer_loss_rate": 0.959
+        },
+        {
+          "threshold": 0.6,
+          "caught_errors": 103,
+          "lost_answers": 210,
+          "remaining_errors": 0,
+          "error_catch_rate": 1.0,
+          "correct_answer_loss_rate": 0.968
+        },
+        {
+          "threshold": 0.7,
+          "caught_errors": 103,
+          "lost_answers": 213,
+          "remaining_errors": 0,
+          "error_catch_rate": 1.0,
+          "correct_answer_loss_rate": 0.982
+        }
+      ],
+      "exam1": {
+        "accuracy": 0.775,
+        "macro_f1": 0.7775,
+        "n": 80,
+        "n_wrong": 18,
+        "reproduces_published": true
+      },
+      "exam2": {
+        "accuracy": 0.8,
+        "macro_f1": 0.7996,
+        "n": 40,
+        "n_wrong": 8
+      }
+    },
+    "iteration 1": {
+      "training_files": [
+        "intents_train.csv"
+      ],
+      "cv_mean_accuracy": 0.8031,
+      "cv_std_accuracy": 0.0581,
+      "cv_fold_scores": [
+        0.875,
+        0.7031,
+        0.8281,
+        0.8281,
+        0.7812
+      ],
+      "n_training_sentences": 320,
+      "threshold_analysis": [
+        {
+          "threshold": 0.2,
+          "caught_errors": 1,
+          "lost_answers": 0,
+          "remaining_errors": 62,
+          "error_catch_rate": 0.016,
+          "correct_answer_loss_rate": 0.0
+        },
+        {
+          "threshold": 0.25,
+          "caught_errors": 8,
+          "lost_answers": 4,
+          "remaining_errors": 55,
+          "error_catch_rate": 0.127,
+          "correct_answer_loss_rate": 0.016
+        },
+        {
+          "threshold": 0.3,
+          "caught_errors": 13,
+          "lost_answers": 12,
+          "remaining_errors": 50,
+          "error_catch_rate": 0.206,
+          "correct_answer_loss_rate": 0.047
+        },
+        {
+          "threshold": 0.35,
+          "caught_errors": 27,
+          "lost_answers": 20,
+          "remaining_errors": 36,
+          "error_catch_rate": 0.429,
+          "correct_answer_loss_rate": 0.078
+        },
+        {
+          "threshold": 0.4,
+          "caught_errors": 37,
+          "lost_answers": 40,
+          "remaining_errors": 26,
+          "error_catch_rate": 0.587,
+          "correct_answer_loss_rate": 0.156
+        },
+        {
+          "threshold": 0.45,
+          "caught_errors": 49,
+          "lost_answers": 51,
+          "remaining_errors": 14,
+          "error_catch_rate": 0.778,
+          "correct_answer_loss_rate": 0.198
+        },
+        {
+          "threshold": 0.5,
+          "caught_errors": 51,
+          "lost_answers": 62,
+          "remaining_errors": 12,
+          "error_catch_rate": 0.81,
+          "correct_answer_loss_rate": 0.241
+        },
+        {
+          "threshold": 0.55,
+          "caught_errors": 55,
+          "lost_answers": 79,
+          "remaining_errors": 8,
+          "error_catch_rate": 0.873,
+          "correct_answer_loss_rate": 0.307
+        },
+        {
+          "threshold": 0.6,
+          "caught_errors": 60,
+          "lost_answers": 87,
+          "remaining_errors": 3,
+          "error_catch_rate": 0.952,
+          "correct_answer_loss_rate": 0.339
+        },
+        {
+          "threshold": 0.7,
+          "caught_errors": 62,
+          "lost_answers": 125,
+          "remaining_errors": 1,
+          "error_catch_rate": 0.984,
+          "correct_answer_loss_rate": 0.486
+        }
+      ],
+      "exam1": {
+        "accuracy": 0.8125,
+        "macro_f1": 0.8118,
+        "n": 80,
+        "n_wrong": 15,
+        "reproduces_published": true
+      },
+      "exam2": {
+        "accuracy": 0.9,
+        "macro_f1": 0.9015,
+        "n": 40,
+        "n_wrong": 4
+      }
+    },
+    "iteration 2": {
+      "training_files": [
+        "intents_train.csv",
+        "intents_train_round2.csv"
+      ],
+      "cv_mean_accuracy": 0.7973,
+      "cv_std_accuracy": 0.046,
+      "cv_fold_scores": [
+        0.8243,
+        0.7838,
+        0.8514,
+        0.8108,
+        0.7162
+      ],
+      "n_training_sentences": 370,
+      "threshold_analysis": [
+        {
+          "threshold": 0.2,
+          "caught_errors": 0,
+          "lost_answers": 0,
+          "remaining_errors": 75,
+          "error_catch_rate": 0.0,
+          "correct_answer_loss_rate": 0.0
+        },
+        {
+          "threshold": 0.25,
+          "caught_errors": 9,
+          "lost_answers": 3,
+          "remaining_errors": 66,
+          "error_catch_rate": 0.12,
+          "correct_answer_loss_rate": 0.01
+        },
+        {
+          "threshold": 0.3,
+          "caught_errors": 18,
+          "lost_answers": 9,
+          "remaining_errors": 57,
+          "error_catch_rate": 0.24,
+          "correct_answer_loss_rate": 0.031
+        },
+        {
+          "threshold": 0.35,
+          "caught_errors": 34,
+          "lost_answers": 21,
+          "remaining_errors": 41,
+          "error_catch_rate": 0.453,
+          "correct_answer_loss_rate": 0.071
+        },
+        {
+          "threshold": 0.4,
+          "caught_errors": 40,
+          "lost_answers": 36,
+          "remaining_errors": 35,
+          "error_catch_rate": 0.533,
+          "correct_answer_loss_rate": 0.122
+        },
+        {
+          "threshold": 0.45,
+          "caught_errors": 45,
+          "lost_answers": 43,
+          "remaining_errors": 30,
+          "error_catch_rate": 0.6,
+          "correct_answer_loss_rate": 0.146
+        },
+        {
+          "threshold": 0.5,
+          "caught_errors": 52,
+          "lost_answers": 58,
+          "remaining_errors": 23,
+          "error_catch_rate": 0.693,
+          "correct_answer_loss_rate": 0.197
+        },
+        {
+          "threshold": 0.55,
+          "caught_errors": 60,
+          "lost_answers": 74,
+          "remaining_errors": 15,
+          "error_catch_rate": 0.8,
+          "correct_answer_loss_rate": 0.251
+        },
+        {
+          "threshold": 0.6,
+          "caught_errors": 64,
+          "lost_answers": 85,
+          "remaining_errors": 11,
+          "error_catch_rate": 0.853,
+          "correct_answer_loss_rate": 0.288
+        },
+        {
+          "threshold": 0.7,
+          "caught_errors": 70,
+          "lost_answers": 124,
+          "remaining_errors": 5,
+          "error_catch_rate": 0.933,
+          "correct_answer_loss_rate": 0.42
+        }
+      ],
+      "exam1": {
+        "accuracy": 0.8,
+        "macro_f1": 0.7988,
+        "n": 80,
+        "n_wrong": 16
+      },
+      "exam2": {
+        "accuracy": 0.925,
+        "macro_f1": 0.9245,
+        "n": 40,
+        "n_wrong": 3
+      }
+    }
+  }
+}

@@ -1,0 +1,51 @@
+text,intent
+how are you,greet
+how are u doing,greet
+hows it going,greet
+whats up peakcast,greet
+who are you,greet
+what are you,greet
+what can you do,greet
+hey how r u,greet
+hi what can u do for me,greet
+are you a bot,greet
+how is your day,greet
+good evening how are you doing,greet
+thank u,goodbye
+thx,goodbye
+thanks mate,goodbye
+ok thx bye,goodbye
+cheers,goodbye
+which weather is tomorrow in innsbruck,ask_overview
+what wether in lienz today,ask_overview
+which wheather is it in graz on friday,ask_overview
+whats the wetter like in kaprun,ask_overview
+what weather tomorow in bad gastein,ask_overview
+how is the whether in schladming,ask_overview
+which weather will be at the dachstein saturday,ask_overview
+weather hallstatt tmrw,ask_overview
+how much snow will fall in obertauern,ask_precipitation
+any snow tomorow in sölden,ask_precipitation
+snow this week in ischgl?,ask_precipitation
+is it gonna rain in salzburg tmorrow,ask_precipitation
+will there be fresh snow in saalbach on friday,ask_precipitation
+wht temperature in zell am see,ask_temperature
+how cold tmorrow in lienz,ask_temperature
+temp in innsbruck tomoorow,ask_temperature
+how warm is it in graz today,ask_temperature
+whats the temprature at the hochkönig,ask_temperature
+how windy tmorrow on the hochkoenig,ask_wind
+wind speed in obertauern today,ask_wind
+gusts at the gerlitzen on satruday,ask_wind
+is it windy for ski touring at the kitzsteinhorn,ask_wind
+how strong is the wind on the schmittenhöhe,ask_wind
+will it be sunny tmorrow in innsbruck,ask_sky
+is it cloudy in kaprun,ask_sky
+sun or clouds at the dachstein saturday,ask_sky
+will i see the sun in lech today,ask_sky
+how foggy is it in salzburg,ask_sky
+can u book a ski pass for me,out_of_scope
+whats the best pizza in innsbruck,out_of_scope
+what is 2 plus 2,out_of_scope
+play some music,out_of_scope
+how many lifts does obertauern have,out_of_scope

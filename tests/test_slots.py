@@ -39,8 +39,8 @@ from peakcast.slots import (
 )
 
 # A fixed Wednesday. Every day test resolves against it, so "on Friday" is
-# always two days out and "next Friday" always nine, run on any machine on any
-# date.
+# always two days out - and since step 11 "next Friday" too (it used to be
+# nine) - run on any machine on any date.
 WEDNESDAY = date(2026, 11, 4)
 
 
@@ -536,7 +536,7 @@ def test_default_is_today_and_says_so() -> None:
 @pytest.mark.parametrize(
     "message, expected_offset",
     [
-        ("next Friday", 9),      # the Friday of the following week
+        ("next weekend", 10),    # the Saturday of the following weekend
         ("in 10 days", 10),
         ("in a week", 7),
         ("in 2 weeks", 14),
@@ -582,3 +582,15 @@ def test_extract_slots_with_no_place_still_has_a_day() -> None:
     slots = extract_slots("whats it like tomorrow", reference=WEDNESDAY)
     assert slots.place is None
     assert slots.day.offset_days == 1
+
+
+def test_next_weekday_is_the_upcoming_one() -> None:
+    """Since step 11, "next Friday" means the next upcoming Friday.
+
+    It used to be read as the Friday of the following week; the user test
+    showed that reading was the wrong one for a real user ("what about next
+    tuesday?" on a Sunday came back as "too far ahead"). The answer now names
+    the date, so the reading is visible either way.
+    """
+    assert find_day("next Friday", reference=WEDNESDAY).offset_days == 2
+    assert find_day("next Wednesday", reference=WEDNESDAY).offset_days == 0

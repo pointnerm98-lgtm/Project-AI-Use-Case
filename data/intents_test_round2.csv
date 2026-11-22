@@ -1,0 +1,41 @@
+text,intent
+Could you tell me how warm it will get in Bad Ischl on Wednesday?,ask_temperature
+I'm wondering whether I need gloves at the Schmittenhöhe early tomorrow - how cold will it be?,ask_temperature
+What's the expected high and low for Villach the day after tomorrow?,ask_temperature
+"Temperatures at the Patscherkofel this weekend, please.",ask_temperature
+Is it going to be below zero on the Großvenediger tonight?,ask_temperature
+Will we get any sunshine over the Wilder Kaiser on Saturday?,ask_sky
+I'd love a clear view from the Gaisberg tomorrow evening - will the sky be clear?,ask_sky
+Is the summit of the Schneeberg likely to be in the clouds today?,ask_sky
+How overcast will it be above Hallstatt on Thursday?,ask_sky
+Any chance of blue skies in Mayrhofen later today?,ask_sky
+Do you expect strong winds along the Großglockner road tomorrow?,ask_wind
+How breezy will it be at the Hohe Wand this afternoon?,ask_wind
+Could the wind be a problem on the Dachstein glacier on Friday?,ask_wind
+What wind speeds are forecast for the Feuerkogel?,ask_wind
+Is there a risk of stormy gusts in Lech am Arlberg tonight?,ask_wind
+"Should I pack waterproofs for Saalbach tomorrow, or will it stay dry?",ask_precipitation
+Is any new powder coming to Ischgl over the next days?,ask_precipitation
+How likely are showers in Graz on Sunday afternoon?,ask_precipitation
+Will there be drizzle in Bregenz in the morning?,ask_precipitation
+Do the models show snowfall in the Ötztal on Tuesday?,ask_precipitation
+Give me a quick summary of the conditions on the Rax for Saturday.,ask_overview
+What does the outlook look like for Kaprun in two days?,ask_overview
+I'm planning a day out in Schladming tomorrow - what's the general forecast?,ask_overview
+"Overall, how is the weather shaping up at the Kitzsteinhorn for the weekend?",ask_overview
+Can you describe the weather in Hermagor for Monday?,ask_overview
+"Good afternoon, PeakCast!",greet
+"Hey there, nice to meet you.",greet
+"Hello, is anybody there?",greet
+Hi! What kind of things can you help me with?,greet
+Morning! I hope you're doing well.,greet
+"That's everything I needed, take care.",goodbye
+Alright - I'll head out now. See you next time.,goodbye
+"Cheers for the help, have a lovely evening.",goodbye
+"Okay, that settles it. Bye for now!",goodbye
+"Many thanks, that was really useful.",goodbye
+Can you recommend a good restaurant in Salzburg?,out_of_scope
+What time does the Nordkette cable car open?,out_of_scope
+How long does the walk from the car park to the Alpincenter take?,out_of_scope
+Tell me a joke about mountaineers.,out_of_scope
+Is the Brenner motorway congested right now?,out_of_scope

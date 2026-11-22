@@ -27,6 +27,7 @@ project pins a random seed.
 
 from __future__ import annotations
 
+import argparse
 import csv
 import json
 import sys
@@ -37,15 +38,24 @@ from typing import Any
 # Make the project root importable (see train_intent.py).
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from peakcast.intent_classifier import REPORTS_DIR, TEST_CSV, TRAIN_CSV
+from peakcast.intent_classifier import (
+    REPORTS_DIR,
+    TEST_CSV,
+    TEST_ROUND2_CSV,
+    TRAIN_CSV,
+    TRAIN_ROUND2_CSV,
+)
 from peakcast.slots import DATA_DIR, extract_slots, find_day, find_place
 
 SLOTS_TEST_CSV: Path = DATA_DIR / "slots_test.csv"
 METRICS_JSON: Path = REPORTS_DIR / "metrics_slots.json"
 CHECK_CSV: Path = REPORTS_DIR / "slot_extraction_check.csv"
 
-# A Wednesday. Fixed so that "on Friday" is always +2 and "next Friday" always
-# +9, whatever day the script is actually run on.
+# A Wednesday. Fixed so that "on Friday" is always +2 whatever day the script is
+# actually run on. ("next Friday" was +9 until step 11 and is +2 since: the
+# convention changed after user test round 1, and the one slots_test.csv row
+# that encodes it was updated with it. reports/metrics_slots.json was measured
+# under the old convention and is kept unchanged.)
 REFERENCE_DATE: date = date(2026, 11, 4)
 
 
@@ -198,10 +208,66 @@ def sweep_intent_data() -> tuple[list[dict[str, str]], dict[str, int]]:
     return rows, summary
 
 
+def lowercase_sweep() -> dict[str, Any]:
+    """Compare extraction on each intent sentence with its lower-cased form.
+
+    Added in step 11, when long place names stopped needing a capital or a
+    preposition. A phone user types in lower case, so the lower-cased sentence
+    should find the *same* place as the original - not a different one, and
+    not one where the original found none.
+
+    Returns:
+        Counts plus every sentence where the two differ.
+    """
+    same = lost = gained = changed = 0
+    differences: list[dict[str, str]] = []
+    for csv_path in (TRAIN_CSV, TEST_CSV, TRAIN_ROUND2_CSV, TEST_ROUND2_CSV):
+        if not csv_path.exists():
+            continue
+        with csv_path.open(encoding="utf-8", newline="") as handle:
+            for record in csv.DictReader(handle):
+                sentence = record["text"]
+                original = find_place(sentence)
+                lowered = find_place(sentence.lower())
+                a = original.name if original else ""
+                b = lowered.name if lowered else ""
+                if a == b:
+                    same += 1
+                    continue
+                kind = "lost" if a and not b else "gained" if b and not a else "changed"
+                if kind == "lost":
+                    lost += 1
+                elif kind == "gained":
+                    gained += 1
+                else:
+                    changed += 1
+                differences.append(
+                    {"sentence": sentence, "original": a, "lowercase": b, "kind": kind}
+                )
+    return {
+        "same_place": same,
+        "lost_in_lowercase": lost,
+        "gained_in_lowercase": gained,
+        "different_place": changed,
+        "differences": differences,
+    }
+
+
 def main() -> None:
     """Score the slot test set and sweep the intent data."""
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
+
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument(
+        "--suffix",
+        default="",
+        help="append to the output file names (e.g. _round2), so earlier "
+        "reports are not overwritten",
+    )
+    suffix = parser.parse_args().suffix
+    metrics_json = METRICS_JSON.with_name(f"{METRICS_JSON.stem}{suffix}.json")
+    check_csv = CHECK_CSV.with_name(f"{CHECK_CSV.stem}{suffix}.csv")
 
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -238,15 +304,28 @@ def main() -> None:
                 f"found {error['found_offset']} (matched {error['matched']!r})"
             )
 
-    METRICS_JSON.write_text(
+    # --- 1b. Lower-case robustness (step 11)
+    lower = lowercase_sweep()
+    metrics["lowercase_sweep"] = lower
+    print()
+    print("--- Lower-case sweep over the intent data -----------------------")
+    print(f"  same place in lower case   {lower['same_place']:>5}")
+    print(f"  lost in lower case         {lower['lost_in_lowercase']:>5}")
+    print(f"  gained in lower case       {lower['gained_in_lowercase']:>5}")
+    print(f"  a different place          {lower['different_place']:>5}")
+    for diff in lower["differences"]:
+        print(f"    [{diff['kind']}] {diff['sentence']}: "
+              f"{diff['original'] or '-'} -> {diff['lowercase'] or '-'}")
+
+    metrics_json.write_text(
         json.dumps(metrics, indent=2, ensure_ascii=False), encoding="utf-8"
     )
     print()
-    print(f"  metrics written to {METRICS_JSON}")
+    print(f"  metrics written to {metrics_json}")
 
     # --- 2. The sweep over the intent datasets
     rows, summary = sweep_intent_data()
-    with CHECK_CSV.open("w", encoding="utf-8", newline="") as handle:
+    with check_csv.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=list(rows[0].keys()))
         writer.writeheader()
         writer.writerows(rows)
@@ -263,7 +342,7 @@ def main() -> None:
     print("  false-positive indicator:")
     print(f"    places matched with no capitalised word at all"
           f"   {summary['place_from_all_lowercase']:>4}")
-    print(f"  written to {CHECK_CSV}")
+    print(f"  written to {check_csv}")
 
 
 if __name__ == "__main__":

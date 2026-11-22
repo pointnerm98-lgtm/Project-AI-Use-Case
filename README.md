@@ -158,6 +158,10 @@ switches:
 - [x] **Step 7** — dialogue manager and response generator: the bot works end-to-end
 - [x] **Step 8** — Streamlit chat interface: `streamlit run app.py`
 - [x] **Step 9** — deployment prep and user-test tooling (transcript export, feedback, analysis)
+- [x] **Step 10** — shorter start screen with suggestion chips
+- [x] **Step 11** — user test round 1: fixes for the safety guard, days, places,
+  corrections, answers and the intent data (iteration 2); every failing sentence
+  is in `data/user_test_round1.csv` and `tests/test_user_test_round1.py`
 
 ### Running the intent classifier
 
@@ -169,22 +173,35 @@ python scripts/evaluate_intent.py                  # baseline test metrics -> re
 python scripts/optimize_intent.py                  # iteration 1: grid search + threshold
 python scripts/evaluate_intent.py --variant iter1  # iteration 1 test metrics -> reports/
 python scripts/compare_iterations.py               # before/after chart + spot-checks
+python scripts/evaluate_round2.py                  # step 11: all three models, both exam sets
 python scripts/try_intent.py                       # interactive: type a sentence
 ```
 
-| Model | CV accuracy (train) | Test accuracy | Macro F1 |
-| --- | --- | --- | --- |
-| Baseline — word TF-IDF + logistic regression | 0.678 | 0.775 | 0.778 |
-| **Iteration 1** — word + character n-grams, grid-searched | **0.803** | **0.813** | **0.812** |
+| Model | CV accuracy (own training data) | Exam 1 accuracy (80) | Exam 2 accuracy (40) | Exam 2 macro F1 |
+| --- | --- | --- | --- | --- |
+| Baseline — word TF-IDF + logistic regression | 0.678 | 0.775 | 0.800 | 0.800 |
+| Iteration 1 — word + character n-grams, grid-searched | 0.803 | **0.813** | 0.900 | 0.901 |
+| **Iteration 2** — iteration 1 + 50 phrasings from user test round 1 | 0.797 | 0.800 | **0.925** | **0.924** |
+
+*Exam 1* is the original test set (`data/intents_test.csv`). *Exam 2*
+(`data/intents_test_round2.csv`) was written after user test round 1, before
+the training additions, in a different style, and has never been used for
+tuning. Iteration 2 is the model the bot uses; it changes only the data
+(`data/intents_train_round2.csv` is added to the training set), not the
+pipeline. Its CV score is on 370 sentences rather than 320 and is not strictly
+comparable. It is one sentence worse than iteration 1 on exam 1 - see
+`DEVLOG.md`, step 11.
 
 All metrics, confusion matrices, the grid search table and every misclassified
-sentence are written to `reports/`.
+sentence are written to `reports/`; step 11 writes new files only
+(`*_round2.*`, `*_iter2_*`), the earlier reports are unchanged.
 
 ### Running the slot extraction (step 5)
 
 ```bash
 python scripts/build_places.py        # download GeoNames, write data/places_at.csv
 python scripts/evaluate_slots.py      # slot metrics -> reports/
+python scripts/evaluate_slots.py --suffix _round2   # same, without overwriting earlier reports
 ```
 
 `scripts/build_places.py` only needs to be run to rebuild or refresh the place
@@ -199,7 +216,9 @@ submitted files.
 
 Measured against a fixed reference date (Wednesday 2026-11-04) so that relative
 day words like *"on Friday"* stay reproducible. See `reports/metrics_slots.json`
-and `reports/slot_extraction_check.csv`.
+and `reports/slot_extraction_check.csv` (step 5), and the `_round2` files for
+the re-run after step 11 (unchanged 52/52; one row's expected value follows the
+new *"next Friday"* convention).
 
 ### Running the weather service (step 6)
 
@@ -231,7 +250,7 @@ noticeably different:
 Needs `requirements-dev.txt` installed (the setup block above does that):
 
 ```bash
-python -m pytest           # 325 tests, no network needed
+python -m pytest           # 424 tests, no network needed
 python -m pytest --live    # also runs three tests against the real API
 ```
 
@@ -276,7 +295,37 @@ Neither follow-up contains a weather word, so the intent classifier cannot
 carry them on its own - *"And tomorrow?"* comes back at p = 0.31 and
 *"What about Kaprun?"* as confident `out_of_scope`. The dialogue manager
 reuses the remembered intent with the new slot instead. See `DEVLOG.md`,
-step 7.
+step 7. (This transcript is from step 7. Since step 11 the gust hint is written
+for the activity the conversation mentions - the flying wording above only
+appears when someone talks about paragliding.)
+
+### What the bot understands (since step 11)
+
+- **Days:** today, tomorrow, weekdays, *"in 3 days"*, calendar dates
+  (*"24 November"*, *"November 24"*, *"the 24th of november"*, *"24.11."*,
+  *"on the 24th"*), with typo tolerance (*"tmorrow"*, *"satruday"*).
+  *"next Tuesday"* means the upcoming Tuesday, the same as *"on Tuesday"*;
+  a day taken from a weekday or a date is always named with its date in the
+  answer (*"on Tuesday 24 November"*).
+- **Several days and ranges:** *"and on thursday? and friday?"* answers each
+  day (up to three); *"this weekend"* answers Saturday and Sunday; *"this
+  week"*, *"the next days"*, *"the coming days"* give one summary over the
+  forecast range (totals and the notable day).
+- **Past days:** *"yesterday"*, *"last week"* get *"PeakCast only forecasts
+  from today on"* and today's values.
+- **Corrections:** *"i meant St. Johann im Pongau"*, *"no, Lienz"*, *"sorry, I
+  meant on friday"* rerun the previous question with the corrected place/day.
+- **Places** in lower case and without *"in"*/*"on"* (*"snow obertauren
+  tomorrow"*); only short names that are also English words (*Going*, *Rain*,
+  *Hard*, *See*) still need a capital or a preposition.
+- **Answers:** a snow question always states the snowfall, also when it is 0;
+  hints depend on the activity (ski touring, hiking, climbing, paragliding,
+  biking), neutral without one.
+- **Small talk** (*"how are you"*, *"who are you"*, *"thank you"*) gets a short
+  friendly reply plus a hint at what PeakCast does; a plain *"thank you"* no
+  longer ends the conversation.
+- **Avalanche questions with typos** (*"avlanceh"*, *"lavine"*) still go to the
+  safety guard.
 
 ### The user interface (step 8)
 

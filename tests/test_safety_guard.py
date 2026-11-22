@@ -188,3 +188,72 @@ def test_guard_is_deterministic() -> None:
     for _ in range(3):
         assert check_message(CLASSIFIER_FAILURE_CASE) == AVALANCHE_REFERRAL
         assert check_message("how windy is it tomorrow") is None
+
+
+# --- Step 11: false positives of the fuzzy layer, measured on project data ----
+# The fuzzy layer added after user test round 1 is only acceptable if it does
+# not start catching ordinary messages. These tests run the guard over every
+# sentence and every place name the project has and pin the exact set that is
+# caught. A new false positive fails them, and so does a lost true positive.
+import csv as _csv  # noqa: E402
+
+_DATA = Path(__file__).resolve().parent.parent / "data"
+
+# Every sentence in the intent and slot data that the guard catches - each one
+# checked by hand to really be about avalanches. (They are the avalanche
+# phrasings kept in out_of_scope on purpose; see the module docstring.)
+EXPECTED_CAUGHT_DATA_SENTENCES = {
+    "what is the avalanche risk on the Dachstein",       # intents_train
+    "whats the avalanche bulletin for Tirol",            # intents_train
+    "whats the avalanche danger level in Vorarlberg",    # intents_test
+}
+
+# The one gazetteer name the guard catches: a mountain whose name literally
+# contains "Lawine" (Totes Gebirge). It was caught by the substring stems before
+# step 11 too; the asymmetry argument in the module docstring accepts it.
+EXPECTED_CAUGHT_PLACE_NAMES = {"Lawinenstein"}
+
+
+def _read_column(name: str, column: str) -> list[dict[str, str]]:
+    with (_DATA / name).open(encoding="utf-8", newline="") as handle:
+        return [row for row in _csv.DictReader(handle)]
+
+
+def test_no_false_positives_on_intent_and_slot_data() -> None:
+    """Over all intent sentences and the slot test set, only avalanche ones."""
+    sentences: set[str] = set()
+    for name, column in (
+        ("intents_train.csv", "text"),
+        ("intents_test.csv", "text"),
+        ("intents_train_round2.csv", "text"),
+        ("intents_test_round2.csv", "text"),
+        ("slots_test.csv", "sentence"),
+    ):
+        sentences.update(row[column] for row in _read_column(name, column))
+    caught = {s for s in sentences if mentions_avalanche(s)}
+    assert caught == EXPECTED_CAUGHT_DATA_SENTENCES
+
+
+def test_user_test_sentences_caught_iff_safety_rows() -> None:
+    """In the user-test file, exactly the safety rows trigger the guard."""
+    for row in _read_column("user_test_round1.csv", "user_message"):
+        for message in (row["user_message"], row["previous_message"]):
+            if not message:
+                continue
+            expected = row["area"] == "safety" and message == row["user_message"]
+            assert mentions_avalanche(message) == expected, message
+
+
+def test_no_false_positives_on_place_names() -> None:
+    """No gazetteer name except the Lawinenstein triggers the guard.
+
+    Measured during step 11: with two edits allowed on the short German word
+    "lawine", 29 names were caught (Laming, Lading, Labing, Tafine, ...), which
+    is why the German targets allow only one edit.
+    """
+    names: set[str] = set()
+    for row in _read_column("places_at.csv", "name"):
+        names.add(row["name"])
+        names.update(a for a in row["alt_names"].split("|") if a)
+    caught = {name for name in names if mentions_avalanche(name)}
+    assert caught == EXPECTED_CAUGHT_PLACE_NAMES

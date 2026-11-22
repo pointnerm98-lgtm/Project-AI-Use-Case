@@ -202,6 +202,9 @@ AMBIGUOUS_ENGLISH_WORDS: frozenset[str] = frozenset(
 #   3. only candidates that already look like a place - capitalised in the
 #      user's text, or preceded by a preposition.
 FUZZY_CUTOFF: float = 0.86
+# The stricter cut-off for a token that has neither a capital nor a preposition
+# in front (step 11, see EVIDENCE_FREE_MIN_LENGTH).
+FUZZY_CUTOFF_NO_EVIDENCE: float = 0.90
 FUZZY_MIN_LENGTH: int = 5
 
 # --- Partial names ---------------------------------------------------------
@@ -226,6 +229,40 @@ FUZZY_MIN_LENGTH: int = 5
 # what the user actually typed.
 CONTAINMENT_MIN_LENGTH: int = 6
 CONTAINMENT_MIN_COVERAGE: float = 0.5
+
+# --- Evidence for long names (step 11) --------------------------------------
+# The capital-or-preposition evidence was introduced for the short names that
+# are also English words ("Going", "Rain", "Hard"). It was applied to the
+# typo-tolerant and partial stages as well, which meant that a phone user
+# typing "snow obertauren tomorrow" - lower case, no "in" - got nothing, even
+# though no English word is anywhere near "obertauren". From this length on, a
+# token is long enough to be distinctive and needs no such evidence; shorter
+# tokens keep the old rule. Day words and their typos are excluded explicitly
+# ("tomoorow" must never become a village).
+EVIDENCE_FREE_MIN_LENGTH: int = 7
+
+# Long ordinary words that the partial and typo-tolerant stages would otherwise
+# compare with the gazetteer once they no longer need evidence. Found by the
+# lower-case sweep over the intent data (DEVLOG step 11); domain words, not a
+# general dictionary.
+COMMON_LONG_WORDS: frozenset[str] = frozenset(
+    {
+        "information", "conditions", "condition", "visibility", "freezing",
+        "thermals", "touring", "backcountry", "paragliding", "climbing",
+        "skitouring", "chances", "humidity", "planning", "thunderstorm",
+        "thunderstorms", "precipitation", "snowfall", "sunshine", "overcast",
+        "outside", "anything", "something", "everything", "nothing",
+        "probably", "actually", "expecting", "expected", "looking", "raining",
+        "snowing", "sunrise", "sunset", "minutes", "between", "another",
+        "possible", "perfect", "awesome", "goodbye", "wether", "whether",
+        "temperatur", "favourite", "favorite",
+    }
+)
+
+# "st.johann" (no space after the dot) is how the tester typed it, and the
+# tokeniser kept it as one token "stjohann", which matches no multi-word name.
+# A space is inserted after "st." / "sankt." before tokenising.
+_SAINT_DOT_RE = re.compile(r"\b(st|sankt)\.(?=[^\W\d_])", flags=re.IGNORECASE)
 
 # Longest gazetteer name in tokens ("Maria Alm am Steinernen Meer" is 5).
 # Bounds the n-gram scan so lookup stays linear in message length.
@@ -335,6 +372,13 @@ class DaySlot:
             whatever came before. Resolving the bare form to today would
             silently answer about the wrong day halfway through a conversation
             about tomorrow.
+        named_date: ``True`` if the day came from a weekday name or a calendar
+            date ("next tuesday", "24.11."). Such answers spell the date out
+            ("on Tuesday 24 November"), so that a misreading of which Tuesday
+            was meant is visible to the user (step 11).
+        span_days: How many consecutive days this slot covers, starting at
+            ``target_date``. 1 for an ordinary day; the forecast horizon for a
+            range such as "this week" or "the next days".
     """
 
     target_date: date
@@ -344,6 +388,18 @@ class DaySlot:
     is_default: bool = False
     in_range: bool = True
     part_only: bool = False
+    named_date: bool = False
+    span_days: int = 1
+
+    @property
+    def is_past(self) -> bool:
+        """Return ``True`` for a day before today ("yesterday", "last week")."""
+        return self.offset_days < 0
+
+    @property
+    def is_range(self) -> bool:
+        """Return ``True`` for a multi-day range ("this week")."""
+        return self.span_days > 1
 
 
 @dataclass(frozen=True)
@@ -353,10 +409,20 @@ class Slots:
     Attributes:
         place: The place found, or ``None``.
         day: The resolved day; never ``None``, because today is the default.
+            When the message named several days, this is the first.
+        extra_days: The further days the message named, in order ("and on
+            thursday? and friday?", or the Sunday of "this weekend"). Empty in
+            the ordinary one-day case.
     """
 
     place: Place | None
     day: DaySlot
+    extra_days: tuple[DaySlot, ...] = ()
+
+    @property
+    def all_days(self) -> tuple[DaySlot, ...]:
+        """Return every day named, the first one included."""
+        return (self.day, *self.extra_days)
 
 
 # --- Text normalisation ----------------------------------------------------
@@ -733,6 +799,25 @@ def _has_place_evidence(
     return False
 
 
+def _needs_no_evidence(token: str) -> bool:
+    """Report whether a token is long and distinctive enough to match as is.
+
+    Used by the partial and fuzzy stages; see ``EVIDENCE_FREE_MIN_LENGTH``.
+
+    Args:
+        token: A normalised token.
+
+    Returns:
+        ``True`` if the token may match without a capital or a preposition.
+    """
+    return (
+        len(token) >= EVIDENCE_FREE_MIN_LENGTH
+        and token not in AMBIGUOUS_ENGLISH_WORDS
+        and correct_day_word(token) is None
+        and token not in COMMON_LONG_WORDS
+    )
+
+
 def _tokenise_aligned(message: str) -> tuple[list[str], list[str]]:
     """Split a message into raw and normalised tokens of equal length.
 
@@ -750,6 +835,7 @@ def _tokenise_aligned(message: str) -> tuple[list[str], list[str]]:
     raw_tokens: list[str] = []
     normalised_tokens: list[str] = []
 
+    message = _SAINT_DOT_RE.sub(lambda m: m.group(1) + ". ", message)
     for raw in re.findall(r"[^\W_]+(?:[.'][^\W_]+)*\.?", message, flags=re.UNICODE):
         normalised = normalise_name(raw)
         if not normalised:
@@ -934,7 +1020,12 @@ def _find_place_partial(
             continue
         if token in AMBIGUOUS_ENGLISH_WORDS:
             continue
-        if not _has_place_evidence(raw_tokens, normalised_tokens, position):
+        if correct_day_word(token) is not None:
+            continue
+        if not (
+            _needs_no_evidence(token)
+            or _has_place_evidence(raw_tokens, normalised_tokens, position)
+        ):
             continue
 
         # Word-boundary containment only: the token must be a whole word of
@@ -989,11 +1080,18 @@ def _find_place_fuzzy(
             continue
         if token in AMBIGUOUS_ENGLISH_WORDS:
             continue
-        if not _has_place_evidence(raw_tokens, normalised_tokens, position):
+        if correct_day_word(token) is not None:
+            continue
+        has_evidence = _has_place_evidence(raw_tokens, normalised_tokens, position)
+        if not (has_evidence or _needs_no_evidence(token)):
             continue
 
+        # Without capital or preposition the similarity bar is higher (step
+        # 11): "favourite" is 0.889 similar to "Favoriten" and was read as the
+        # Vienna district; a real typo such as "obertauren" scores 0.90.
+        cutoff = FUZZY_CUTOFF if has_evidence else FUZZY_CUTOFF_NO_EVIDENCE
         matches = difflib.get_close_matches(
-            token, index.by_name.keys(), n=1, cutoff=FUZZY_CUTOFF
+            token, index.by_name.keys(), n=1, cutoff=cutoff
         )
         if not matches:
             continue
@@ -1010,16 +1108,28 @@ def _find_place_fuzzy(
 
 
 # --- Day extraction --------------------------------------------------------
-# Ordered longest-phrase-first. "day after tomorrow" has to be tested before
-# "tomorrow", and "this afternoon" before "afternoon", or the shorter phrase
-# would swallow the longer one.
+# Rewritten in step 11 after user test round 1, which found five distinct
+# failures in the day slot (DEVLOG step 11):
 #
-# Each entry is (regex, offset_days, part_of_day). An offset of None means the
-# handler computes it (weekdays, "in N days").
-_DAY_PATTERNS: list[tuple[str, int | None, str | None, bool]] = [
-    # --- explicit two- and three-word phrases first
-    (r"\bday after tomorrow\b", 2, None, False),
-    (r"\bthe day after tomorrow\b", 2, None, False),
+#   "tomoorow", "tmorrow"            typos ignored, silently answered for today
+#   "what about next tuesday?"       read as the Tuesday of the following week
+#   "wht temperature yesterday ..."  a past day answered as today, without a word
+#   "... this week in obertauern"    a range answered as today
+#   "and on thursday? and friday?"   only the first day answered
+#
+# The structure that fixes the last one fixes several others too: instead of
+# returning the *first pattern that matches*, every day mention in the message
+# is collected with its position, overlaps are resolved in favour of the longer
+# phrase, and the mentions are returned in the order the user wrote them.
+#
+# Each fixed phrase is (regex, offset_days, part_of_day, part_only). Negative
+# offsets are past days: they are returned, flagged by ``DaySlot.is_past``, so
+# the dialogue manager can say that PeakCast only forecasts from today on rather
+# than quietly answering for today.
+_DAY_PATTERNS: list[tuple[str, int, str | None, bool]] = [
+    # --- explicit two- and three-word phrases
+    (r"\b(?:the )?day after tomorrow\b", 2, None, False),
+    (r"\b(?:the )?day before yesterday\b", -2, None, False),
     (r"\btomorrow morning\b", 1, PART_MORNING, False),
     (r"\btomorrow afternoon\b", 1, PART_AFTERNOON, False),
     (r"\btomorrow evening\b", 1, PART_EVENING, False),
@@ -1028,24 +1138,27 @@ _DAY_PATTERNS: list[tuple[str, int | None, str | None, bool]] = [
     (r"\bthis afternoon\b", 0, PART_AFTERNOON, False),
     (r"\bthis evening\b", 0, PART_EVENING, False),
     (r"\bthis night\b", 0, PART_NIGHT, False),
+    (r"\blast night\b", -1, PART_NIGHT, False),
     # "tonight" is today plus a night flag, not a separate day: a user asking
     # at 18:00 about "tonight" means the hours still ahead of them today.
     (r"\btonight\b", 0, PART_NIGHT, False),
     (r"\bovernight\b", 0, PART_NIGHT, False),
     # --- single words
     (r"\btomorrow\b", 1, None, False),
-    (r"\btomorow\b", 1, None, False),   # typo present in the training data
     (r"\btmrw\b", 1, None, False),
     (r"\btoday\b", 0, None, False),
     (r"\bright now\b", 0, None, False),
     (r"\bnow\b", 0, None, False),
     (r"\bat the moment\b", 0, None, False),
     (r"\bcurrently\b", 0, None, False),
+    (r"\byesterday\b", -1, None, False),
+    (r"\blast week\b", -7, None, False),
     # --- "in the <part>": a part of the day with no day named. These are the
     #     only part_only=True patterns, because they are the only ones that
-    #     leave the day open. On their own they mean today; inside a
-    #     conversation the dialogue manager reads them as the remembered day,
-    #     which is what makes "and in the afternoon?" work as a follow-up.
+    #     leave the day open. On their own they mean today; next to a named day
+    #     ("friday in the afternoon") they attach to it; inside a conversation
+    #     the dialogue manager reads them as the remembered day, which is what
+    #     makes "and in the afternoon?" work as a follow-up.
     #
     #     Bare "morning"/"evening" are deliberately NOT patterns: "good
     #     morning" and "have a good evening" are greetings, and the intent
@@ -1054,12 +1167,36 @@ _DAY_PATTERNS: list[tuple[str, int | None, str | None, bool]] = [
     (r"\bin the afternoon\b", 0, PART_AFTERNOON, True),
     (r"\bin the evening\b", 0, PART_EVENING, True),
 ]
+_COMPILED_DAY_PATTERNS = [
+    (re.compile(pattern), offset, part, part_only)
+    for pattern, offset, part, part_only in _DAY_PATTERNS
+]
 
-# "this weekend" -> Saturday. A weekend spans two days and the forecast is
-# per-day, so one has to be chosen; Saturday is the first of the two and the
-# day a tour is more likely to be planned for. The dialogue manager can offer
-# Sunday as a follow-up.
-_WEEKEND_RE = re.compile(r"\b(this |next |the )?weekend\b")
+# --- Ranges ----------------------------------------------------------------
+# "this week", "the next days", "the coming days": the user wants an overview
+# of the period, not today's numbers. A range is one DaySlot that starts today
+# and spans the whole forecast horizon, and the response generator turns it
+# into one short summary (totals and the notable day) rather than seven
+# answers. The forecast horizon rather than "until Sunday" is used for "this
+# week", because the tester who asked it on a Sunday clearly meant the coming
+# days - the calendar week had one day left.
+RANGE_SPAN_DAYS: int = FORECAST_DAYS
+_RANGE_RE = re.compile(
+    r"\b(?:"
+    r"(?:this|the|coming|the coming) week"
+    r"|rest of the week"
+    r"|(?:the )?(?:next|coming|following) (?:few )?days"
+    r"|(?:the )?(?:next|coming) couple of days"
+    r"|(?:the )?few days"
+    r")\b"
+)
+
+# "this weekend" is **two** days, Saturday and Sunday, and both are answered
+# (step 11; until then only Saturday was). Said on a Saturday or Sunday,
+# "this weekend" still means the *coming* Saturday, as before - on a Sunday
+# that Sunday's own successor then lies one day beyond the horizon, and the
+# answer says so rather than dropping it.
+_WEEKEND_RE = re.compile(r"\b(this |next |the |last )?weekend\b")
 
 # "in 3 days", "in a week".
 _IN_N_DAYS_RE = re.compile(r"\bin (\d+|a|one|two|three|four|five|six|seven) (day|days|week|weeks)\b")
@@ -1068,9 +1205,92 @@ _NUMBER_WORDS: dict[str, int] = {
     "four": 4, "five": 5, "six": 6, "seven": 7,
 }
 
-# "on Friday", "next Friday", "friday".
+# Short forms that are also ordinary words: "how much sun tomorrow" is not about
+# Sunday, and "I sat" is not Saturday. They count as days only with a prefix
+# ("on sun", "this sat"). Found by the step 11 slot sweep: once every day
+# mention in a message was collected, "sun" started to win over "tomorrow" -
+# and a bare "how much sun in Saalbach" had been read as Sunday all along.
+PREFIX_ONLY_DAY_ABBREVIATIONS: frozenset[str] = frozenset({"sun", "sat"})
+
+# "on Friday", "next Friday", "last Friday", "friday".
 _WEEKDAY_RE = re.compile(
-    r"\b(next |on |this |coming )?(" + "|".join(WEEKDAY_NAMES) + r")\b"
+    r"\b(next |on |this |coming |last )?(" + "|".join(WEEKDAY_NAMES) + r")\b"
+)
+
+# --- Explicit calendar dates -----------------------------------------------
+# Before step 11 the bot only understood dates through a weekday name; the
+# tester's "the 24th of november" was silently answered for today. Accepted
+# forms: "24 November", "24th of November", "November 24", "Nov 24th",
+# "24.11." / "24.11.2026" (the German way of writing it), and "the 24th"
+# (the next 24th from today).
+#
+# Month names are only ever matched next to a number, so "may" in "it may
+# rain" and "march" as a verb can never become a date.
+MONTH_NAMES: dict[str, int] = {
+    "january": 1, "jan": 1, "januar": 1, "jaenner": 1, "janner": 1,
+    "february": 2, "feb": 2, "februar": 2,
+    "march": 3, "mar": 3, "marz": 3, "maerz": 3, "märz": 3,
+    "april": 4, "apr": 4,
+    "may": 5, "mai": 5,
+    "june": 6, "jun": 6, "juni": 6,
+    "july": 7, "jul": 7, "juli": 7,
+    "august": 8, "aug": 8,
+    "september": 9, "sep": 9, "sept": 9,
+    "october": 10, "oct": 10, "oktober": 10, "okt": 10,
+    "november": 11, "nov": 11,
+    "december": 12, "dec": 12, "dezember": 12, "dez": 12,
+}
+_MONTH_ALT = "|".join(sorted(MONTH_NAMES, key=len, reverse=True))
+_ORDINAL = r"(?:st|nd|rd|th)?"
+_DATE_DAY_MONTH_RE = re.compile(
+    rf"\b(?:the )?(\d{{1,2}}){_ORDINAL}(?: of)? ({_MONTH_ALT})\b"
+)
+_DATE_MONTH_DAY_RE = re.compile(
+    rf"\b({_MONTH_ALT}) (?:the )?(\d{{1,2}}){_ORDINAL}\b"
+)
+# "24.11." needs the trailing dot (or a year), so a decimal such as "2.5" is
+# never read as a date.
+_DATE_NUMERIC_RE = re.compile(r"\b(\d{1,2})\.(\d{1,2})\.(\d{4}|\d{2})?")
+_DATE_ORDINAL_ONLY_RE = re.compile(r"\bthe (\d{1,2})(?:st|nd|rd|th)\b")
+
+# A date more than this many days in the past is taken to mean next year:
+# asked on 30 December, "5 January" is a week ahead, not a year ago. Anything
+# closer stays in the past and is answered as a past day.
+DATE_ROLLOVER_DAYS: int = 60
+
+# At most this many days are answered from one message ("and on thursday? and
+# friday?"). Three keeps the reply readable on a phone; a fourth day is
+# dropped rather than turning the answer into a table.
+MAX_DAYS_PER_MESSAGE: int = 3
+
+# --- Day-word typos --------------------------------------------------------
+# The day vocabulary is closed, which makes typo tolerance safe in a way it is
+# not for place names. Measured on the user test: "tomoorow", "tmorrow",
+# "tomorow", "tommorow", "satruday". Rules, all conservative:
+#
+#   * only words of DAY_FUZZY_MIN_LENGTH letters or more ("today" and "now"
+#     are too short to tolerate typos in - "toady", "nowt" ...);
+#   * one edit for six- and seven-letter words, two from eight letters on
+#     (optimal string alignment, so a swapped pair is one edit);
+#   * never a word that is itself an ordinary English word, a weather word
+#     ("sunnyy" is two edits from "sunday") or a place in the gazetteer
+#     ("Mondsee" must stay a lake);
+#   * the correction must be unique - a word equally close to two day words is
+#     left alone.
+DAY_FUZZY_MIN_LENGTH: int = 6
+DAY_FUZZY_LONG_WORD: int = 8
+DAY_VOCABULARY: tuple[str, ...] = (
+    "tomorrow", "yesterday", "tonight", "weekend",
+    "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
+)
+# Words close to a day word that must never be corrected into one.
+DAY_FUZZY_PROTECTED: frozenset[str] = frozenset(
+    {
+        "sunny", "sunnyy", "sunnny", "sundae", "sunday", "summit", "summer",
+        "windy", "monday", "mondays", "fridays", "tonite", "tomato", "tomatoes",
+        "weekends", "weekly", "weekday", "weekdays", "saturn", "thursdays",
+        "tuesdays", "wednesdays", "saturdays", "sundays", "yesterdays",
+    }
 )
 
 
@@ -1086,22 +1306,86 @@ def today_in_vienna() -> date:
     return datetime.now(VIENNA).date()
 
 
+def correct_day_word(word: str) -> str | None:
+    """Return the day word a typo stands for, or ``None``.
+
+    Args:
+        word: One lower-case token.
+
+    Returns:
+        The canonical day word ("tomorrow", "saturday", ...) if ``word`` is
+        that word or a conservative typo of it, otherwise ``None``.
+    """
+    if word in DAY_VOCABULARY:
+        return word
+    if (
+        len(word) < DAY_FUZZY_MIN_LENGTH
+        or not word.isalpha()
+        or word in DAY_FUZZY_PROTECTED
+        or word in AMBIGUOUS_ENGLISH_WORDS
+    ):
+        return None
+
+    allowed = 2 if len(word) >= DAY_FUZZY_LONG_WORD else 1
+    # Imported lazily: textmatch has no dependencies, but keeping the import
+    # here makes the one place the day extractor uses it obvious.
+    from peakcast.textmatch import osa_distance
+
+    scored = sorted(
+        (osa_distance(word, target), target) for target in DAY_VOCABULARY
+    )
+    best_distance, best_target = scored[0]
+    if best_distance > allowed:
+        return None
+    if len(scored) > 1 and scored[1][0] == best_distance:
+        return None  # equally close to two day words: do not guess
+
+    # Last guard, checked only for words that would otherwise be corrected:
+    # a real place name is never a typo.
+    if normalise_name(word) in get_place_index().by_name:
+        return None
+    return best_target
+
+
+def _correct_day_typos(text: str) -> str:
+    """Replace day-word typos in an already lower-cased text by the real word.
+
+    Args:
+        text: Lower-cased message with punctuation (except dots) as spaces.
+
+    Returns:
+        The text with each typo replaced.
+    """
+    tokens = text.split(" ")
+    corrected = []
+    for token in tokens:
+        core = token.rstrip(".")
+        fixed = correct_day_word(core) if core else None
+        corrected.append(fixed + token[len(core):] if fixed and fixed != core else token)
+    return " ".join(corrected)
+
+
 def _make_day(
     offset: int,
     part_of_day: str | None,
     matched_text: str,
     reference: date,
     part_only: bool = False,
+    named_date: bool = False,
+    span_days: int = 1,
 ) -> DaySlot:
     """Build a ``DaySlot`` and flag it if it is outside the forecast horizon.
 
     Args:
-        offset: Days from the reference date.
+        offset: Days from the reference date; negative for a past day.
         part_of_day: Part-of-day flag or ``None``.
         matched_text: The phrase that produced this.
         reference: The date that counts as "today".
         part_only: Whether the phrase named a part of the day but not which
             day; see ``DaySlot.part_only``.
+        named_date: Whether the day came from a weekday name or a calendar
+            date, so the answer must spell the date out.
+        span_days: Number of days covered, for ranges.
 
     Returns:
         The day slot, with ``in_range=False`` if the bot cannot forecast it.
@@ -1113,22 +1397,297 @@ def _make_day(
         matched_text=matched_text,
         in_range=0 <= offset <= MAX_DAY_OFFSET,
         part_only=part_only,
+        named_date=named_date,
+        span_days=span_days,
+    )
+
+
+def _resolve_calendar_date(day_number: int, month: int, reference: date, year: int | None = None) -> date | None:
+    """Turn a day and month into a date, choosing the year sensibly.
+
+    Args:
+        day_number: Day of the month.
+        month: Month number.
+        reference: Today.
+        year: An explicit year, if the user gave one.
+
+    Returns:
+        The date, or ``None`` if it does not exist (31 November).
+    """
+    try:
+        if year is not None:
+            return date(year, month, day_number)
+        candidate = date(reference.year, month, day_number)
+        if (reference - candidate).days > DATE_ROLLOVER_DAYS:
+            candidate = date(reference.year + 1, month, day_number)
+        return candidate
+    except ValueError:
+        return None
+
+
+def _date_mentions(text: str, reference: date) -> list[tuple[int, int, DaySlot]]:
+    """Find explicit calendar dates.
+
+    Args:
+        text: Normalised message (dots kept).
+        reference: Today.
+
+    Returns:
+        ``(start, end, day)`` per date found.
+    """
+    found: list[tuple[int, int, DaySlot]] = []
+
+    def add(match: re.Match, resolved: date | None) -> None:
+        if resolved is None:
+            return
+        found.append(
+            (
+                match.start(),
+                match.end(),
+                _make_day(
+                    (resolved - reference).days,
+                    None,
+                    match.group(0),
+                    reference,
+                    named_date=True,
+                ),
+            )
+        )
+
+    for match in _DATE_DAY_MONTH_RE.finditer(text):
+        add(match, _resolve_calendar_date(int(match.group(1)), MONTH_NAMES[match.group(2)], reference))
+    for match in _DATE_MONTH_DAY_RE.finditer(text):
+        add(match, _resolve_calendar_date(int(match.group(2)), MONTH_NAMES[match.group(1)], reference))
+    for match in _DATE_NUMERIC_RE.finditer(text):
+        year_text = match.group(3)
+        year = None
+        if year_text:
+            year = int(year_text) + (2000 if len(year_text) == 2 else 0)
+        month = int(match.group(2))
+        if 1 <= month <= 12:
+            add(match, _resolve_calendar_date(int(match.group(1)), month, reference, year))
+    for match in _DATE_ORDINAL_ONLY_RE.finditer(text):
+        day_number = int(match.group(1))
+        # The next such day of the month from today on.
+        resolved = _resolve_calendar_date(day_number, reference.month, reference, reference.year)
+        if resolved is not None and resolved < reference:
+            next_month = reference.month % 12 + 1
+            next_year = reference.year + (1 if next_month == 1 else 0)
+            resolved = _resolve_calendar_date(day_number, next_month, reference, next_year)
+        add(match, resolved)
+    return found
+
+
+def _day_mentions(text: str, reference: date) -> list[tuple[int, int, list[DaySlot]]]:
+    """Collect every day mention in the text with its position.
+
+    One mention can produce two days (the weekend), so each entry carries a
+    list.
+
+    Args:
+        text: Normalised, typo-corrected message.
+        reference: Today.
+
+    Returns:
+        ``(start, end, days)`` per mention, unordered and possibly overlapping.
+    """
+    mentions: list[tuple[int, int, list[DaySlot]]] = []
+
+    for pattern, offset, part, part_only in _COMPILED_DAY_PATTERNS:
+        for match in pattern.finditer(text):
+            mentions.append(
+                (
+                    match.start(),
+                    match.end(),
+                    [_make_day(offset, part, match.group(0), reference, part_only=part_only)],
+                )
+            )
+
+    for match in _RANGE_RE.finditer(text):
+        mentions.append(
+            (
+                match.start(),
+                match.end(),
+                [_make_day(0, None, match.group(0), reference, span_days=RANGE_SPAN_DAYS)],
+            )
+        )
+
+    for match in _IN_N_DAYS_RE.finditer(text):
+        raw_number, unit = match.group(1), match.group(2)
+        count = int(raw_number) if raw_number.isdigit() else _NUMBER_WORDS[raw_number]
+        offset = count * 7 if unit.startswith("week") else count
+        mentions.append(
+            (match.start(), match.end(), [_make_day(offset, None, match.group(0), reference)])
+        )
+
+    for match in _WEEKEND_RE.finditer(text):
+        prefix = (match.group(1) or "").strip()
+        saturday = (5 - reference.weekday()) % 7
+        if prefix == "next":
+            saturday += 7
+        elif prefix == "last":
+            saturday = -((reference.weekday() - 5) % 7 or 7)
+        mentions.append(
+            (
+                match.start(),
+                match.end(),
+                [
+                    _make_day(saturday, None, match.group(0), reference, named_date=True),
+                    _make_day(saturday + 1, None, match.group(0), reference, named_date=True),
+                ],
+            )
+        )
+
+    for match in _WEEKDAY_RE.finditer(text):
+        prefix = (match.group(1) or "").strip()
+        if match.group(2) in PREFIX_ONLY_DAY_ABBREVIATIONS and not prefix:
+            continue
+        weekday = WEEKDAY_NAMES[match.group(2)]
+        if prefix == "last":
+            offset = -((reference.weekday() - weekday) % 7 or 7)
+        else:
+            # "Friday" said on a Friday means today, not a week from now.
+            #
+            # "next Friday" means the same as "on Friday": the next upcoming
+            # one, within seven days. Until step 11 it was read as the Friday
+            # of the *following* week, which is one defensible reading of
+            # English - and the wrong one for the tester, who asked "what about
+            # next tuesday?" on a Sunday and got "Tuesday 1 December is too far
+            # ahead". The answer now always names the date it used ("on
+            # Tuesday 24 November"), so if a user did mean the week after, the
+            # reading is visible and easy to correct.
+            offset = (weekday - reference.weekday()) % 7
+        mentions.append(
+            (
+                match.start(),
+                match.end(),
+                [_make_day(offset, None, match.group(0), reference, named_date=True)],
+            )
+        )
+
+    for start, end, day in _date_mentions(text, reference):
+        mentions.append((start, end, [day]))
+
+    return mentions
+
+
+def _normalise_day_text(message: str) -> str:
+    """Lower-case, turn punctuation except dots into spaces, fix day typos.
+
+    Dots are kept because "24.11." is a date; the patterns use word
+    boundaries, so "tomorrow." still matches "tomorrow".
+
+    Args:
+        message: Raw user message.
+
+    Returns:
+        The text the day patterns run on.
+    """
+    text = "".join(ch if ch.isalnum() or ch == "." else " " for ch in message.lower())
+    text = " ".join(text.split())
+    return _correct_day_typos(text)
+
+
+def find_days(message: str, reference: date | None = None) -> list[DaySlot]:
+    """Find every day a message names, in the order the user wrote them.
+
+    Up to ``MAX_DAYS_PER_MESSAGE`` days are returned. "this weekend" counts as
+    two (Saturday and Sunday). A part of day that names no day of its own
+    ("friday in the afternoon") is attached to the named day rather than
+    returned as a separate today.
+
+    Args:
+        message: Raw user message.
+        reference: The date to treat as today.
+
+    Returns:
+        The days, possibly empty.
+    """
+    reference = reference or today_in_vienna()
+    text = _normalise_day_text(message)
+
+    # Longest mention first, so "the day after tomorrow" beats "tomorrow" and
+    # "tomorrow afternoon" beats both "tomorrow" and nothing; then keep every
+    # mention that does not overlap one already kept.
+    mentions = sorted(_day_mentions(text, reference), key=lambda m: (-(m[1] - m[0]), m[0]))
+    kept: list[tuple[int, int, list[DaySlot]]] = []
+    for start, end, days in mentions:
+        if all(end <= k_start or start >= k_end for k_start, k_end, _ in kept):
+            kept.append((start, end, days))
+    kept.sort(key=lambda m: m[0])
+
+    full_days: list[DaySlot] = []
+    part_only_days: list[DaySlot] = []
+    for _, _, days in kept:
+        for day in days:
+            (part_only_days if day.part_only else full_days).append(day)
+
+    if not full_days:
+        return part_only_days[:1]
+
+    # "on friday in the afternoon": the part of day belongs to the named day.
+    if part_only_days and len(full_days) == 1 and full_days[0].part_of_day is None:
+        only = full_days[0]
+        full_days = [
+            DaySlot(
+                target_date=only.target_date,
+                offset_days=only.offset_days,
+                part_of_day=part_only_days[0].part_of_day,
+                matched_text=only.matched_text,
+                in_range=only.in_range,
+                named_date=only.named_date,
+                span_days=only.span_days,
+            )
+        ]
+
+    # The same day named twice ("tomorrow ... tomorrow") is one day.
+    unique: list[DaySlot] = []
+    for day in full_days:
+        if not any(
+            u.target_date == day.target_date
+            and u.part_of_day == day.part_of_day
+            and u.span_days == day.span_days
+            for u in unique
+        ):
+            unique.append(day)
+    return unique[:MAX_DAYS_PER_MESSAGE]
+
+
+def default_day(reference: date | None = None) -> DaySlot:
+    """Return the day assumed when the message names none: today.
+
+    Args:
+        reference: The date to treat as today.
+
+    Returns:
+        Today, flagged ``is_default``.
+    """
+    reference = reference or today_in_vienna()
+    return DaySlot(
+        target_date=reference,
+        offset_days=0,
+        part_of_day=None,
+        matched_text="",
+        is_default=True,
+        in_range=True,
     )
 
 
 def find_day(message: str, reference: date | None = None) -> DaySlot:
-    """Resolve the day a message refers to.
+    """Resolve the (first) day a message refers to.
 
     Recognises ``today``, ``tonight``, ``this morning/afternoon/evening``,
     ``tomorrow``, ``the day after tomorrow``, the weekday names (with
-    ``next``/``on``/``this``), ``this weekend`` (resolved to Saturday) and
-    ``in N days``.
+    ``next``/``on``/``this``/``last``), ``this weekend``, ``in N days``,
+    calendar dates, ranges ("this week") and past days ("yesterday"), with
+    typo tolerance for the day words. See ``find_days`` for messages naming
+    several days.
 
     Defaults to **today** when no day word is present, which matches what a
     user means by a bare "how windy is it on the Hochkönig".
 
-    Dates beyond the forecast horizon are returned with ``in_range=False``
-    rather than being clamped, so the bot can say it cannot forecast that far
+    Dates beyond the forecast horizon, and past dates, are returned with
+    ``in_range=False`` rather than being clamped, so the bot can say so
     instead of answering for the wrong day.
 
     Args:
@@ -1139,69 +1698,23 @@ def find_day(message: str, reference: date | None = None) -> DaySlot:
     Returns:
         The resolved day; never ``None``.
     """
-    reference = reference or today_in_vienna()
-    # Lower-case but keep word shapes; day words contain no umlauts, so the
-    # full name normalisation is not needed here.
-    text = " ".join(
-        "".join(ch if ch.isalnum() else " " for ch in message.lower()).split()
-    )
+    days = find_days(message, reference=reference)
+    return days[0] if days else default_day(reference)
 
-    # 1. Fixed phrases. Longest first by construction of the list.
-    for pattern, offset, part, part_only in _DAY_PATTERNS:
-        match = re.search(pattern, text)
-        if match and offset is not None:
-            return _make_day(
-                offset, part, match.group(0), reference, part_only=part_only
-            )
 
-    # 2. "in N days" / "in a week"
-    match = _IN_N_DAYS_RE.search(text)
-    if match:
-        raw_number, unit = match.group(1), match.group(2)
-        count = int(raw_number) if raw_number.isdigit() else _NUMBER_WORDS[raw_number]
-        offset = count * 7 if unit.startswith("week") else count
-        return _make_day(offset, None, match.group(0), reference)
+def is_day_word(word: str) -> bool:
+    """Report whether a single token is a day word or a typo of one.
 
-    # 3. "this weekend" -> the coming Saturday. Checked before the weekday
-    #    patterns so that "next weekend" is not read as a bare weekday.
-    match = _WEEKEND_RE.search(text)
-    if match:
-        prefix = (match.group(1) or "").strip()
-        days_until_saturday = (5 - reference.weekday()) % 7
-        # On a Saturday, "this weekend" means today; on a Sunday it has
-        # already started, so the coming Saturday is six days out and the
-        # modulo above gives that naturally.
-        offset = days_until_saturday
-        if prefix == "next":
-            offset += 7
-        return _make_day(offset, None, match.group(0), reference)
+    Used by the dialogue manager's follow-up test, which strips the day the
+    user named and needs to strip a misspelled one as well.
 
-    # 4. Weekday names.
-    match = _WEEKDAY_RE.search(text)
-    if match:
-        prefix = (match.group(1) or "").strip()
-        weekday = WEEKDAY_NAMES[match.group(2)]
-        days_until = (weekday - reference.weekday()) % 7
-        # "Friday" said on a Friday means today, not a week from now.
-        offset = days_until
-        if prefix == "next":
-            # "next Friday" is read as the Friday of the following week. This
-            # is genuinely ambiguous in English; the convention is documented
-            # here and in the tests so the behaviour is at least predictable,
-            # and it will usually fall outside the 7-day horizon, where the
-            # bot says so rather than guessing.
-            offset = days_until + 7
-        return _make_day(offset, None, match.group(0), reference)
+    Args:
+        word: One token, any case.
 
-    # 5. Nothing found: assume today.
-    return DaySlot(
-        target_date=reference,
-        offset_days=0,
-        part_of_day=None,
-        matched_text="",
-        is_default=True,
-        in_range=True,
-    )
+    Returns:
+        ``True`` for "tomorrow", "tmorrow", "friday", "weekend", ...
+    """
+    return correct_day_word(word.lower()) is not None
 
 
 def extract_slots(
@@ -1218,9 +1731,12 @@ def extract_slots(
         csv_path: Gazetteer to use; overridden in tests.
 
     Returns:
-        The place (or ``None``) and the resolved day.
+        The place (or ``None``), the first day named (today by default), and
+        any further days the message named.
     """
+    days = find_days(message, reference=reference)
     return Slots(
         place=find_place(message, csv_path=csv_path),
-        day=find_day(message, reference=reference),
+        day=days[0] if days else default_day(reference),
+        extra_days=tuple(days[1:]),
     )

@@ -1849,3 +1849,250 @@ rows.
 - both reset tests now check that the chips come back, and the sidebar-reset
   test also checks that a chip works in the new conversation.
 
+---
+
+## Step 11 — User test round 1 (2026-11-22)
+
+The first real test: the deployed app, on a phone, on **Sunday 22 November**.
+Every message that went wrong was written down with what the tester expected.
+Each one became a failing test with the exact sentence first
+(`tests/test_user_test_round1.py`), then the fix. The sentences, with
+expected, actual-before and actual-after behaviour, are in
+`data/user_test_round1.csv` (25 rows). The "before" column is the step 10
+code re-run offline on the test day, not the live numbers the tester saw.
+
+### What failed
+
+| Area | Message | What happened |
+| --- | --- | --- |
+| Safety | *"is avlanceh danger?"* | generic "didn't catch that" |
+| Safety | *"avalnche on the dachstein"*, *"lavine am Hochkönig"* (from the tester's typo list) | **a weather forecast** - the worst case |
+| Days | *"tomoorow"*, *"tmorrow"*, *"satruday"* | typo ignored, silently answered for today |
+| Days | *"what about next tuesday?"* (on a Sunday) | "Tuesday 1 December is too far ahead" |
+| Days | *"the 24th of november"*, *"24.11."* | date ignored, answered for today |
+| Days | *"wht temperature yesterday in zell am see"* | today's forecast, no word about it |
+| Days | *"how much snow will there be this week in obertauern"* | only today |
+| Days | *"this weekend"* | only Saturday |
+| Days | *"ok great and on thursday? and friday?"* | only Thursday |
+| Places | *"i meant st.johann im pongau"* | "That's outside what I do" |
+| Answers | snow question on a dry day | "Tomorrow in Obertauern: dry." |
+| Answers | ski tourer | "Worth checking before you launch" / "not flying weather" |
+| Answers | app caption | "1 answer(s) left" |
+| Intent | *"how are you today?"* | "That's outside what I do" |
+| Intent | *"which wether is tmorrow in salzburg"* | cloud cover only, for today |
+
+### 1. Safety guard: fuzzy layer
+
+A third layer next to the substring stems and the whole-word abbreviations:
+every word of 6+ letters is compared with *avalanche, avalanches, lawine,
+lawinen* by optimal-string-alignment distance (`peakcast/textmatch.py`;
+Levenshtein plus adjacent swap, because a swapped pair is the commonest phone
+typo and plain Levenshtein charges it twice - *"avlanceh"* costs 3 there and
+2 here). Long words are also compared by their start, for compounds
+(*"Lavinengefahr"*).
+
+The allowed distance was **measured, not set by hand**. Two edits on every
+target, as first planned, caught **29 gazetteer names** (Laming, Lading,
+Labing, Tafine, Dawinkopf, ...) - so *"weather in Sankt Kathrein an der
+Laming"* would have got an avalanche referral. Now: two edits for the long
+English word, one for the 6-7-letter German words. That still catches every
+German typo from the test.
+
+False positives, checked over everything the project has (now a test in
+`tests/test_safety_guard.py`, so a change that adds one fails):
+
+| Data | Sentences / names | Caught | Of which not about avalanches |
+| --- | --- | --- | --- |
+| intent sentences (train, test, round-2 train, round-2 exam) | 490 | 3 | 0 |
+| slot test set | 52 | 0 | 0 |
+| user-test sentences (incl. previous messages) | 25 + 3 | 6 (the safety rows) | 0 |
+| gazetteer names incl. alternates | 34 191 | 1 (*Lawinenstein*) | see below |
+
+The *Lawinenstein* (Totes Gebirge) literally contains "Lawine" and was already
+caught by the substring stem before this step. Asking for its weather gets the
+referral; by the asymmetry argument of step 5 that is accepted.
+
+### 2. Days (`peakcast/slots.py`)
+
+The day extractor was restructured: instead of returning the *first pattern
+that matches*, it collects every day mention with its position, keeps the
+longest of overlapping ones and returns them in the user's order. That one
+change is what makes several days per message possible, and it is also what
+exposed an old bug (below).
+
+- **Typos:** day words of 6+ letters are corrected within one edit (6-7
+  letters) or two (8+), only if the correction is unique, and never for a word
+  that is an English word, a weather word (*"sunnyy"* is two edits from
+  *"sunday"*) or a gazetteer name (*"Mondsee"*).
+- **"next \<weekday\>"** now means the upcoming one, the same as "on
+  \<weekday\>". Every day that comes from a weekday name or a date is answered
+  with weekday **and** date (*"on Tuesday 24 November"*), so a misreading is
+  visible. This changed one expectation in `data/slots_test.csv`
+  (*"what about next Friday"*: +9 → +2) and two old tests; the step 5
+  `reports/metrics_slots.json` was measured under the old convention and is
+  left as it was.
+- **Explicit dates:** *"24 November"*, *"24th of November"*, *"November 24"*,
+  *"Nov 24th"*, *"24.11."*/*"24.11.2026"*, *"on the 24th"*. Month names only
+  match next to a number, so *"it may rain"* is never a date; *"24.11"* needs
+  the trailing dot so a decimal is never read as one. A date more than 60 days
+  in the past means next year.
+- **Past days** (*yesterday, the day before yesterday, last night, last week,
+  last \<weekday\>*, past dates) get a negative offset. The dialogue manager
+  answers *"PeakCast only forecasts from today on, so I can't look back to
+  yesterday. Here is today instead: ..."*.
+- **Ranges** (*this week, the next (few) days, the coming days, rest of the
+  week*) are one slot spanning the forecast horizon, answered with one summary:
+  totals and the notable day per intent (*"13.2 cm of fresh snow in total,
+  most on Wednesday 25 November (10.3 cm), plus 0.2 mm of rain, all on Tuesday
+  24 November"*). "This week" means the forecast horizon, not the calendar
+  week: the tester asked on a Sunday, with one calendar day left.
+- **Weekend** = Saturday and Sunday, each answered. On the test Sunday the
+  following Sunday is day 7, one beyond the horizon, and the answer says so
+  instead of dropping it.
+- **Several days** (max 3) are answered in one short reply, one clause per
+  day, with one hint from the windiest day.
+
+**Regression found by the sweep and fixed:** with all mentions collected,
+*"how much sun can I expect in Saalbach tomorrow"* was read as **Sunday** -
+"sun" is a short form in `WEEKDAY_NAMES`. The old code only hid this by
+checking weekdays last; a bare *"is the sun out in Zell am See"* had been read
+as Sunday all along (it is in the step 5 check file with offset 4). "sun" and
+"sat" now count as days only with a prefix (*"on sun"*).
+
+### 3. Places and corrections
+
+- **"st.johann"** was one token, `stjohann`, which matches no multi-word name.
+  A space is now inserted after *st.*/*sankt.* before tokenising.
+- **Long names without capital or preposition:** the evidence rule (capital or
+  preposition) was meant for short names that are English words, but it was
+  also applied to the partial and typo stages, so *"snow obertauren tomorrow"*
+  found nothing. Tokens of 7+ letters no longer need evidence, except day
+  words and a short list of long domain words. The sweep then found
+  *"whats your favourite mountain"* → **Favoriten** (similarity 0.889), so
+  evidence-free typo matches need 0.90 instead of 0.86.
+- **Corrections** (*"i meant ..."*, *"no, ..."*, *"sorry, I meant ..."*): the
+  correction phrase is stripped; if what is left is nothing but a place and/or
+  day (the existing bare-slot test), the previous question is rerun with the
+  corrected slot. *"no, can you book me a hotel"* stays out of scope.
+
+Slot metrics, re-run into new files (`reports/metrics_slots_round2.json`,
+`reports/slot_extraction_check_round2.csv`):
+
+| Check | Step 5 | Step 11 |
+| --- | --- | --- |
+| slot test set: place / day / part of day | 52/52 · 52/52 · 52/52 | 52/52 · 52/52 · 52/52 |
+| intent-data sweep: sentences with a place | 258 | 258 |
+| sweep: changed results vs step 5 | - | 1 (*"is the sun out in Zell am See"*: Sunday → today, a fix) |
+| sweep: place matched with no capital at all | - | 0 |
+| new: same place when the sentence is lower-cased | - | 489 of 490 |
+
+The one lower-case difference is an old false positive that lower case fixes:
+*"... See you next time."* matches the village **See** because of the capital.
+
+### 4. Answers (`peakcast/responses.py`)
+
+- A **snow question always states the snowfall**: *"no fresh snow expected -
+  2.1 mm of rain instead (88 % chance)"*, or *"... - it stays dry"*. A
+  follow-up to a snow question (*"and on friday?"*) stays a snow question.
+  *"base"* and *"cover"* were removed from the snow words - they made *"cloud
+  base"* and *"cloud cover"* snow questions.
+- **Activity-aware hints:** the message or the conversation (remembered in the
+  dialogue state) names *ski touring/skiing, hiking, climbing, paragliding or
+  biking*. Each has its own gust wording; thresholds are named constants,
+  marked as heuristics: paragliding keeps 25/40 km/h, on foot/skis/bike 40/60,
+  climbing 35/55, and without an activity the on-foot thresholds with neutral
+  wording (*"Gusts to 65 km/h are strong on exposed ridges and summits"*). Fog,
+  rain and fresh-snow hints have activity variants too. Five old tests that
+  pinned the flying wording now pass `activity=paragliding`, which is what they
+  were about.
+- **"1 answer left" / "2 answers left"** in the app.
+
+### 5. Intent model: data iteration 2
+
+**Small talk: in `greet`, not a new intent.** The reply has the same job as
+the greeting (be friendly, say what PeakCast does); a ninth class would need
+its own ~40 sentences to stay balanced; and keeping the label set identical
+keeps baseline, iteration 1 and iteration 2 comparable on the same confusion
+axes. Which friendly sentence is used (*how are you / who are you / what's
+up*) is a transparent rule in `dialogue.py`, which also catches small talk the
+classifier misses (*"how are you today?"* is still `out_of_scope` at p = 0.48
+for the iteration 2 model on its own). A plain *"thank you"* is `goodbye` for
+the classifier but now gets *"You're welcome! ..."* and keeps the conversation
+open; *"thanks bye"*, *"that's all thanks"* still end it.
+
+**Order of work, to keep the new exam honest:**
+
+1. `data/intents_test_round2.csv` written first: 40 sentences, 5 per intent,
+   in a deliberately different style from the tester's (full, polite, correctly
+   spelled sentences, some indirect).
+2. Baseline and iteration 1 scored on it (0.800 and 0.900).
+3. Then `data/intents_train_round2.csv`: 50 phrasings in the tester's style
+   (lower case, typos, *which wether*, small talk). The list had been drafted
+   before step 2 and was not changed after seeing exam 2's errors. The
+   tester's own sentences are **not** in it, so their regression tests remain
+   a real generalisation check. 3 rows duplicate old training rows (*thx*,
+   *cheers*, *play some music*); harmless.
+4. Iteration 2 = the iteration 1 pipeline and hyper-parameters, unchanged,
+   trained on both files. Only the data changes.
+
+`scripts/evaluate_round2.py` rebuilds all three models from their data and
+first checks that baseline and iteration 1 reproduce their published exam-1
+scores (they do, exactly). Results (`reports/metrics_round2.json`,
+`reports/comparison_round2.png`):
+
+| Model | CV (5-fold, own training data) | Exam 1 (80) | Exam 2 (40) | Exam 2 macro F1 |
+| --- | --- | --- | --- | --- |
+| baseline | 0.678 ± 0.069 | 0.775 | 0.800 | 0.800 |
+| iteration 1 | 0.803 ± 0.058 | **0.813** | 0.900 | 0.901 |
+| iteration 2 | 0.797 ± 0.046 | 0.800 | **0.925** | **0.924** |
+
+Reading it honestly:
+
+- **Exam 2 improves** by one sentence (*"Hi! What kind of things can you help
+  me with?"*, greet, fixed). With 5 sentences per intent that is a small
+  signal.
+- **Exam 1 gets one sentence worse.** Newly wrong: *"gotta go now"* (→ greet,
+  p = 0.25) and *"ok im off"* (→ out_of_scope, p = 0.28); newly right:
+  *"gday"*. Both new errors are below the 0.35 threshold, so in the bot they
+  produce the help reply, not a wrong answer. I did **not** add phrasings to
+  fix them: that would be tuning on the test set.
+- **CV** is on 370 instead of 320 sentences and not strictly comparable; it is
+  level within one standard deviation.
+- **Threshold 0.35 kept:** out of fold, iteration 2 catches 45.3 % of errors
+  at a cost of 7.1 % of correct answers (iteration 1: 42.9 % / 7.8 %).
+
+All earlier metrics files are unchanged (`git status` shows no modified file
+in `reports/`); step 11 only adds new ones.
+
+### Testing
+
+**424 tests with no network** (+97), plus 1 strict xfail (unchanged). New:
+`tests/test_user_test_round1.py` (93 tests, one or more per row of the CSV,
+plus the false-positive guards for the new fuzzy rules), three false-positive
+tests in `test_safety_guard.py`, one convention test in `test_slots.py`.
+Changed: the *"next Friday"* cases in `test_slots.py` and `test_dialogue.py`
+(the latter now uses *"on the 13th"*), and the five flying-hint tests in
+`test_responses.py`.
+
+### Open points
+
+- **Retest on the phone.** Everything here was reproduced and verified offline
+  with the test day fixed; the tester should re-run the failed messages
+  against the redeployed app with live data.
+- *"kitzbuhl"* (lower case, no "e") resolves to the **Kitzbühler Horn**, not
+  the town: it is a correct prefix of an alternate name, and the partial stage
+  runs before the typo stage on purpose (step 5: Bischling). The answer says
+  *"I took that as ..."*, so it is visible.
+- *"... See you next time."* matches the village See (capital at sentence
+  start). Old rule, now visible in the lower-case sweep.
+- Iteration 2's two new exam-1 goodbye errors (*"gotta go now"*, *"ok im
+  off"*) - candidates for user-test round 2 data, not for tuning on exam 1.
+- *"next weekend"* is still the weekend after the coming one (+7); only
+  *"next \<weekday\>"* changed. *"this weekend"* said on a Sunday means the
+  coming Saturday and Sunday.
+- *"today"* and *"now"* get no typo tolerance (too short to do it safely).
+- Range summaries carry no gust or activity hint, only thunderstorms or the
+  avalanche-bulletin sentence for heavy snow.
+- The *Lawinenstein* triggers the avalanche referral.
+- The `out_of_scope` quantity leak (strict xfail) is still open.
+- Exam 2 has only 5 sentences per intent.

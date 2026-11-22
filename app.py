@@ -140,6 +140,21 @@ FEEDBACK_KEY_PREFIX: str = "feedback_"
 
 
 @st.cache_resource(show_spinner=False)
+def remaining_answers_caption(remaining: int) -> str:
+    """Say how many answers are left, with the right singular or plural.
+
+    "1 answer(s) left" was flagged in user test round 1 (step 11).
+
+    Args:
+        remaining: Answers left, at least 1.
+
+    Returns:
+        The caption text.
+    """
+    noun = "answer" if remaining == 1 else "answers"
+    return f"{remaining} {noun} left in this conversation."
+
+
 def load_bot(allow_live: bool) -> Bot:
     """Build the bot once per process and reuse it.
 
@@ -533,7 +548,7 @@ def main() -> None:
     else:
         remaining = MAX_ANSWERS - state.answers_given
         if 0 < remaining <= 3:
-            st.caption(f"{remaining} answer(s) left in this conversation.")
+            st.caption(remaining_answers_caption(remaining))
 
         message = st.chat_input("Ask about the weather in Austria ...")
         if message:

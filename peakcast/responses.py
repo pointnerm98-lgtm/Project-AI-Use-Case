@@ -58,17 +58,156 @@ ASK_WIND: str = "ask_wind"
 ASK_PRECIPITATION: str = "ask_precipitation"
 ASK_OVERVIEW: str = "ask_overview"
 
+# --- Activities ------------------------------------------------------------
+# Added in step 11. User test round 1 showed a ski tourer being told "that is
+# not flying weather": the gust hint had been written for one reader (the
+# paraglider pilot from the concept) and was shown to everyone. Now the hint is
+# chosen for the activity the message - or earlier in the conversation, which
+# the dialogue manager remembers - mentions, and without one it is worded
+# neutrally.
+ACTIVITY_SKI_TOURING: str = "ski_touring"
+ACTIVITY_HIKING: str = "hiking"
+ACTIVITY_CLIMBING: str = "climbing"
+ACTIVITY_PARAGLIDING: str = "paragliding"
+ACTIVITY_BIKING: str = "biking"
+
+# Matched as whole words against the lower-cased message. Multi-word phrases
+# ("via ferrata") are matched as substrings. "tour" alone is deliberately not a
+# keyword: "ski tour" is caught by "ski", and a bare "tour" can be anything.
+ACTIVITY_KEYWORDS: dict[str, tuple[str, ...]] = {
+    ACTIVITY_SKI_TOURING: (
+        "ski", "skis", "skiing", "skier", "skitour", "skitouring", "skitour",
+        "backcountry", "splitboard", "splitboarding", "freeride",
+        "freeriding", "skinning", "skitouren",
+    ),
+    ACTIVITY_HIKING: (
+        "hike", "hiking", "hikes", "hiker", "walk", "walking", "trek",
+        "trekking", "wandern", "wanderung", "scramble", "scrambling",
+    ),
+    ACTIVITY_CLIMBING: (
+        "climb", "climbing", "climber", "crag", "bouldering", "multipitch",
+        "via ferrata", "klettersteig", "klettern",
+    ),
+    ACTIVITY_PARAGLIDING: (
+        "paraglide", "paragliding", "paraglider", "fly", "flying", "launch",
+        "glider", "gliding", "gleitschirm", "thermals", "hike and fly",
+    ),
+    ACTIVITY_BIKING: (
+        "bike", "biking", "mtb", "cycling", "cycle", "ebike", "e-bike",
+        "mountainbike", "mountain bike", "riding",
+    ),
+}
+
 # --- Hint thresholds -------------------------------------------------------
 # HEURISTICS for this student project, not official limits. They are set to be
 # useful rather than cautious-at-any-cost: a hint that fires on every answer
 # teaches the user to ignore it.
 #
-# Gusts: recreational paraglider pilots commonly treat the mid-20s km/h as the
-# point where a launch needs thinking about and the mid-30s as "not today".
-# Real decisions depend on the site, the wing and the pilot, which is exactly
-# why the bot hints rather than advises.
-GUST_NOTABLE_KMH: float = 25.0
-GUST_STRONG_KMH: float = 40.0
+# Gusts, per activity, as (notable, strong) in km/h:
+#
+# * Paragliding keeps the original thresholds: recreational pilots commonly
+#   treat the mid-20s km/h as the point where a launch needs thinking about
+#   and the mid-30s as "not today". Real decisions depend on the site, the wing
+#   and the pilot, which is exactly why the bot hints rather than advises.
+# * On foot, on skis or on a bike, gusts in the mid-20s are unremarkable; they
+#   become noticeable on a ridge around 40 km/h and a balance problem around
+#   60 km/h. Climbers are a little more sensitive (rope handling, calls between
+#   belay and leader), so their thresholds sit slightly lower.
+# * Without a known activity the same on-foot thresholds apply, with neutral
+#   wording.
+GUST_NOTABLE_KMH: float = 25.0      # paragliding: worth checking before launch
+GUST_STRONG_KMH: float = 40.0       # paragliding: not flying weather
+GUST_NOTABLE_GROUND_KMH: float = 40.0
+GUST_STRONG_GROUND_KMH: float = 60.0
+GUST_NOTABLE_CLIMBING_KMH: float = 35.0
+GUST_STRONG_CLIMBING_KMH: float = 55.0
+
+GUST_THRESHOLDS_KMH: dict[str | None, tuple[float, float]] = {
+    ACTIVITY_PARAGLIDING: (GUST_NOTABLE_KMH, GUST_STRONG_KMH),
+    ACTIVITY_CLIMBING: (GUST_NOTABLE_CLIMBING_KMH, GUST_STRONG_CLIMBING_KMH),
+    ACTIVITY_SKI_TOURING: (GUST_NOTABLE_GROUND_KMH, GUST_STRONG_GROUND_KMH),
+    ACTIVITY_HIKING: (GUST_NOTABLE_GROUND_KMH, GUST_STRONG_GROUND_KMH),
+    ACTIVITY_BIKING: (GUST_NOTABLE_GROUND_KMH, GUST_STRONG_GROUND_KMH),
+    None: (GUST_NOTABLE_GROUND_KMH, GUST_STRONG_GROUND_KMH),
+}
+
+# The gust hint texts, per activity and level, each as (with the figure,
+# without it). The second form is used when the answer sentence has already
+# given the gust value - see VALUES_STATED_BY_INTENT.
+GUST_HINTS: dict[str | None, dict[str, tuple[str, str]]] = {
+    ACTIVITY_PARAGLIDING: {
+        "strong": (
+            "Gusts to {g} km/h are strong - not flying weather, and exposed "
+            "ridges will be unpleasant.",
+            "That is not flying weather, and exposed ridges will be unpleasant.",
+        ),
+        "notable": (
+            "Gusts reach {g} km/h, worth checking before you launch.",
+            "Worth checking before you launch.",
+        ),
+    },
+    ACTIVITY_SKI_TOURING: {
+        "strong": (
+            "Gusts to {g} km/h are strong - serious wind chill on ridges and "
+            "summits, and wind-drifted snow is a topic for the avalanche "
+            "bulletin.",
+            "Gusts that strong mean serious wind chill on ridges and summits, "
+            "and wind-drifted snow is a topic for the avalanche bulletin.",
+        ),
+        "notable": (
+            "Gusts to {g} km/h up high - expect wind chill on the ridges.",
+            "Gusts like that mean wind chill on the ridges.",
+        ),
+    },
+    ACTIVITY_HIKING: {
+        "strong": (
+            "Gusts to {g} km/h are strong - exposed ridges can throw you off "
+            "balance, so a lower route is the better plan.",
+            "Gusts that strong can throw you off balance on exposed ridges, so "
+            "a lower route is the better plan.",
+        ),
+        "notable": (
+            "Gusts to {g} km/h are noticeable on exposed ridges - keep a "
+            "windproof layer handy.",
+            "Gusts like that are noticeable on exposed ridges - keep a "
+            "windproof layer handy.",
+        ),
+    },
+    ACTIVITY_CLIMBING: {
+        "strong": (
+            "Gusts to {g} km/h are strong - rope handling and calls get hard "
+            "on exposed routes; a sheltered crag is the better plan.",
+            "Gusts that strong make rope handling and calls hard on exposed "
+            "routes; a sheltered crag is the better plan.",
+        ),
+        "notable": (
+            "Gusts to {g} km/h are noticeable on exposed pitches and stances.",
+            "Gusts like that are noticeable on exposed pitches and stances.",
+        ),
+    },
+    ACTIVITY_BIKING: {
+        "strong": (
+            "Gusts to {g} km/h are strong - take care on exposed ridges and "
+            "fast descents.",
+            "Gusts that strong call for care on exposed ridges and fast "
+            "descents.",
+        ),
+        "notable": (
+            "Gusts to {g} km/h are noticeable on open ridges and descents.",
+            "Gusts like that are noticeable on open ridges and descents.",
+        ),
+    },
+    None: {
+        "strong": (
+            "Gusts to {g} km/h are strong on exposed ridges and summits.",
+            "Gusts that strong are hard going on exposed ridges and summits.",
+        ),
+        "notable": (
+            "Gusts to {g} km/h are noticeable on exposed ridges.",
+            "Gusts like that are noticeable on exposed ridges.",
+        ),
+    },
+}
 
 # Fresh snow worth mentioning to a ski tourer, and enough to change the day.
 FRESH_SNOW_NOTABLE_CM: float = 1.0
@@ -98,7 +237,10 @@ SNOW_WORDS: frozenset[str] = frozenset(
         "snow", "snowfall", "snowing", "snowy", "snwo", "snoww",
         "powder", "fresh", "freshies", "ski", "skiing", "skitour",
         "skitouring", "tour", "touring", "slopes", "piste", "pistes",
-        "schnee", "neuschnee", "firn", "base", "cover",
+        "schnee", "neuschnee", "firn", "snows", "snowed", "snwo",
+        # "base" and "cover" were removed in step 11: they made "how high is
+        # the cloud base" and "how much cloud cover" count as snow questions,
+        # which mattered once a snow question started always stating snowfall.
     }
 )
 
@@ -202,6 +344,30 @@ def mentions_snow(message: str) -> bool:
     return bool(words & SNOW_WORDS)
 
 
+def detect_activity(message: str) -> str | None:
+    """Return the outdoor activity a message mentions, if any.
+
+    When several are mentioned, the one named first wins ("ski touring, or
+    hiking if it rains" is a ski-touring question).
+
+    Args:
+        message: The raw user message.
+
+    Returns:
+        One of the ``ACTIVITY_*`` constants, or ``None``.
+    """
+    text = " " + " ".join(
+        "".join(ch if ch.isalnum() or ch == "-" else " " for ch in message.lower()).split()
+    ) + " "
+    best: tuple[int, str] | None = None
+    for activity, keywords in ACTIVITY_KEYWORDS.items():
+        for keyword in keywords:
+            position = text.find(f" {keyword} ")
+            if position >= 0 and (best is None or position < best[0]):
+                best = (position, activity)
+    return best[1] if best else None
+
+
 def describe_day(day: DaySlot, today: date, with_preposition: bool = True) -> str:
     """Put the day into words the way a person would say it.
 
@@ -222,7 +388,19 @@ def describe_day(day: DaySlot, today: date, with_preposition: bool = True) -> st
     """
     offset = (day.target_date - today).days
 
-    if offset == 0:
+    if day.named_date:
+        # The day came from a weekday name or a calendar date. Spelling the
+        # date out is what makes a misreading visible (step 11): the tester's
+        # "next tuesday" was silently resolved to a different Tuesday, and
+        # "on Tuesday 24 November" would have shown it at once.
+        calendar = format_calendar_date(day.target_date)
+        if offset == 0:
+            words = f"today ({calendar})"
+        elif offset == 1:
+            words = f"tomorrow ({calendar})"
+        else:
+            words = f"on {calendar}" if with_preposition else calendar
+    elif offset == 0:
         words = "today"
     elif offset == 1:
         words = "tomorrow"
@@ -349,7 +527,9 @@ TEMPLATES: dict[str, tuple[str, ...]] = {
     ASK_PRECIPITATION: (
         "{place} {day}: {precipitation}.",
         "{day_cap} {in_place}: {precipitation}.",
-        "{in_place_cap} {day} the forecast is {precipitation}.",
+        # Was "... the forecast is {precipitation}", which reads badly now that
+        # a snow question can be answered "no fresh snow expected - ...".
+        "Forecast {in_place} {day}: {precipitation}.",
     ),
     ASK_OVERVIEW: (
         "{place} {day}: {sky}, {tmin} to {tmax}, wind to {gusts}, "
@@ -391,6 +571,21 @@ def describe_precipitation(report: WeatherReport, snow_first: bool) -> str:
         else ""
     )
 
+    if snow_first and not snow:
+        # A snow question is always answered about snow, also when there is
+        # none (step 11): "Today in Obertauern: dry." left the tester unsure
+        # whether the bot had understood that they asked about snow at all.
+        chance = report.precipitation_probability_max
+        if rain:
+            suffix = f" ({chance} % chance)" if chance else ""
+            return f"no fresh snow expected - {rain} instead{suffix}"
+        if chance >= 30:
+            return (
+                "no fresh snow expected and no measurable precipitation, "
+                f"though there is a {chance} % chance of showers"
+            )
+        return "no fresh snow expected - it stays dry"
+
     if snow_first:
         parts = [p for p in (snow, rain) if p]
     else:
@@ -416,6 +611,7 @@ def build_hints(
     report: WeatherReport,
     snow_first: bool,
     stated: frozenset[str] = frozenset(),
+    activity: str | None = None,
 ) -> list[str]:
     """Produce the outdoor hints that apply to this forecast.
 
@@ -431,6 +627,9 @@ def build_hints(
         stated: The kinds of value the answer sentence already gives (see
             ``VALUES_STATED_BY_INTENT``). A hint that would repeat one of them
             drops the figure and keeps the advice.
+        activity: The activity the conversation is about (``ACTIVITY_*``), or
+            ``None`` for neutral wording. Chooses the gust thresholds and the
+            wording of the gust, fresh-snow, fog and rain hints.
 
     Returns:
         Hint sentences, most important first.
@@ -444,22 +643,25 @@ def build_hints(
             "Thunderstorms are forecast - plan to be off summits and ridges early."
         )
 
-    # 2. Gusts. The concept names gusts as the value that decides whether a
-    #    paraglider launches, so this hint is phrased for that reader.
+    # 2. Gusts, worded and thresholded for the activity. Until step 11 this
+    #    hint was always written for a paraglider pilot, so a ski tourer was
+    #    told "that is not flying weather".
+    notable, strong = GUST_THRESHOLDS_KMH.get(activity, GUST_THRESHOLDS_KMH[None])
+    texts = GUST_HINTS.get(activity, GUST_HINTS[None])
     gusts_already_said = VALUE_GUSTS in stated
-    if report.wind_gusts_max >= GUST_STRONG_KMH:
+    level = (
+        "strong"
+        if report.wind_gusts_max >= strong
+        else "notable"
+        if report.wind_gusts_max >= notable
+        else None
+    )
+    if level:
+        with_figure, without_figure = texts[level]
         hints.append(
-            "That is not flying weather, and exposed ridges will be unpleasant."
+            without_figure
             if gusts_already_said
-            else f"Gusts to {report.wind_gusts_max:.0f} km/h are strong - "
-            "not flying weather, and exposed ridges will be unpleasant."
-        )
-    elif report.wind_gusts_max >= GUST_NOTABLE_KMH:
-        hints.append(
-            "Worth checking before you launch."
-            if gusts_already_said
-            else f"Gusts reach {report.wind_gusts_max:.0f} km/h, "
-            "worth checking before you launch."
+            else with_figure.format(g=f"{report.wind_gusts_max:.0f}")
         )
 
     # 3. Fresh snow, promoted when the question was about snow.
@@ -471,13 +673,23 @@ def build_hints(
             else f"{report.snowfall_sum:.0f} cm of new snow changes the day - "
             "and it is also why the avalanche bulletin matters more than I do."
         )
-    elif report.snowfall_sum >= FRESH_SNOW_NOTABLE_CM and snow_first:
-        hints.append("There is a little fresh snow on top of the old cover.")
+    elif report.snowfall_sum >= FRESH_SNOW_NOTABLE_CM and (
+        snow_first or activity == ACTIVITY_HIKING
+    ):
+        hints.append(
+            "Fresh snow can hide the path and make it slippery higher up."
+            if activity == ACTIVITY_HIKING
+            else "There is a little fresh snow on top of the old cover."
+        )
 
     # 4. Fog. For this use case it is about the view and orientation, which is
     #    what the ask_sky intent is really asking about.
     if report.sky == SKY_FOGGY:
-        hints.append("Fog is likely, so do not count on the view or on landmarks.")
+        hints.append(
+            "Fog is likely - no launching without visibility."
+            if activity == ACTIVITY_PARAGLIDING
+            else "Fog is likely, so do not count on the view or on landmarks."
+        )
 
     # 5. Cold. Below freezing is a gear question; well below is a real one.
     if report.temperature_min <= HARD_FREEZE_C:
@@ -492,7 +704,11 @@ def build_hints(
 
     # 6. Rain, only when there is no stronger hint already.
     if report.rain_sum >= RAIN_NOTABLE_MM and not hints:
-        hints.append("Take a rain jacket.")
+        hints.append(
+            "Rain means wet rock - a day for a sheltered or indoor wall."
+            if activity == ACTIVITY_CLIMBING
+            else "Take a rain jacket."
+        )
 
     # 7. Heat, the one hint that is not about cold or wind.
     if report.temperature_max >= WARM_C:
@@ -536,6 +752,13 @@ def _template_values(
     }
 
 
+def _offline_note(reports: list[WeatherReport], brief: bool) -> list[str]:
+    """Return the offline disclosure if any report is demo data."""
+    if any(report.is_offline for report in reports):
+        return [OFFLINE_NOTE_BRIEF if brief else OFFLINE_NOTE]
+    return []
+
+
 def generate_answer(
     intent: str,
     report: WeatherReport,
@@ -546,6 +769,8 @@ def generate_answer(
     rng: random.Random | None = None,
     include_hint: bool = True,
     brief_offline_note: bool = False,
+    activity: str | None = None,
+    snow_question: bool | None = None,
 ) -> str:
     """Write the answer for one weather question.
 
@@ -555,20 +780,27 @@ def generate_answer(
         place: The resolved place.
         day: The resolved day.
         today: The date that counts as today, for "today"/"tomorrow" wording.
-        message: The user's own message, used only to decide whether snow is
-            reported before rain.
+        message: The user's own message, used to decide whether this is a snow
+            question and which activity it is about, unless those are given.
         rng: Random source for picking a phrasing. Pass a seeded
             ``random.Random`` to make the output deterministic; the tests do.
         include_hint: Whether to append an outdoor hint.
         brief_offline_note: Use the short form of the offline disclosure,
             for answers after the first one in a conversation.
+        activity: The activity of the conversation. ``None`` means "detect it
+            from ``message``"; the dialogue manager passes the remembered one.
+        snow_question: Whether this is a snow question. ``None`` means "decide
+            from ``message``"; the dialogue manager passes it for follow-ups
+            ("and tomorrow?" after a snow question is still a snow question).
 
     Returns:
         One or two sentences, plus the offline note when the numbers are demo
         data.
     """
     rng = rng or random.Random()
-    snow_first = mentions_snow(message)
+    snow_first = mentions_snow(message) if snow_question is None else snow_question
+    if activity is None:
+        activity = detect_activity(message)
 
     templates = TEMPLATES.get(intent, TEMPLATES[ASK_OVERVIEW])
     values = _template_values(report, place, day, today, snow_first)
@@ -576,16 +808,254 @@ def generate_answer(
 
     if include_hint:
         hints = build_hints(
-            report, snow_first, stated=VALUES_STATED_BY_INTENT.get(intent, frozenset())
+            report,
+            snow_first,
+            stated=VALUES_STATED_BY_INTENT.get(intent, frozenset()),
+            activity=activity,
         )
         if hints:
             # One hint only. Two is a lecture, and the list is ordered so the
             # most consequential one is the one that survives.
             sentences.append(hints[0])
 
-    if report.is_offline:
-        sentences.append(OFFLINE_NOTE_BRIEF if brief_offline_note else OFFLINE_NOTE)
+    sentences.extend(_offline_note([report], brief_offline_note))
+    return " ".join(sentences)
 
+
+# --- Several days in one answer (step 11) ---------------------------------
+# "and on thursday? and friday?" and "this weekend" name more than one day.
+# Each day gets one short clause, in the order the user named them, so the
+# reply stays a few lines on a phone. The clause carries the same values as
+# the one-day templates, without the variants: in a list, a fixed shape is
+# easier to scan than variety.
+DAY_CLAUSES: dict[str, str] = {
+    ASK_TEMPERATURE: "{tmin} to {tmax}",
+    ASK_SKY: "{sky}, {cloud} % cloud cover",
+    ASK_WIND: "wind around {wind}, gusts to {gusts}",
+    ASK_PRECIPITATION: "{precipitation}",
+    ASK_OVERVIEW: "{sky}, {tmin} to {tmax}, gusts to {gusts}, {precipitation}",
+}
+
+OUT_OF_RANGE_CLAUSE: str = "{asked} is too far ahead - I can forecast up to {last}."
+
+
+def generate_multi_day_answer(
+    intent: str,
+    items: list[tuple[DaySlot, WeatherReport | None]],
+    place: Place,
+    today: date,
+    last_forecast_day: date,
+    message: str = "",
+    brief_offline_note: bool = False,
+    activity: str | None = None,
+    snow_question: bool | None = None,
+) -> str:
+    """Answer several named days in one short reply.
+
+    Args:
+        intent: The weather intent.
+        items: ``(day, report)`` per day, in the order named. ``report`` is
+            ``None`` for a day beyond the forecast horizon.
+        place: The resolved place.
+        today: The date that counts as today.
+        last_forecast_day: The last forecastable date, for the out-of-range
+            clause.
+        message: The user's message (snow question, activity).
+        brief_offline_note: Short form of the offline note.
+        activity: The conversation's activity, or ``None`` to detect it.
+        snow_question: Whether this is a snow question, or ``None`` to detect.
+
+    Returns:
+        One sentence per day, at most one hint, and the offline note.
+    """
+    snow_first = mentions_snow(message) if snow_question is None else snow_question
+    if activity is None:
+        activity = detect_activity(message)
+    at_place = f"{preposition_for(place)} {describe_place(place)}"
+    clause = DAY_CLAUSES.get(intent, DAY_CLAUSES[ASK_OVERVIEW])
+
+    sentences: list[str] = []
+    reports: list[WeatherReport] = []
+    hint_candidates: list[tuple[float, str, str]] = []
+    for position, (day, report) in enumerate(items):
+        label = describe_day(day, today)
+        if report is None:
+            sentences.append(
+                OUT_OF_RANGE_CLAUSE.format(
+                    asked=format_calendar_date(day.target_date),
+                    last=format_calendar_date(last_forecast_day),
+                )
+            )
+            continue
+        reports.append(report)
+        values = _template_values(report, place, day, today, snow_first)
+        text = clause.format(**values)
+        if position == 0:
+            head = f"{at_place[0].upper()}{at_place[1:]} {label}"
+        else:
+            head = label[0].upper() + label[1:]
+        sentences.append(f"{head}: {text}.")
+        hints = build_hints(report, snow_first, activity=activity)
+        if hints:
+            hint_candidates.append(
+                (report.wind_gusts_max, day.target_date.strftime("%A"), hints[0])
+            )
+
+    if hint_candidates:
+        # One hint for the whole reply, from the windiest day, and named so the
+        # reader knows which day it is about.
+        _, weekday, hint = max(hint_candidates, key=lambda c: c[0])
+        sentences.append(f"{weekday}: {hint[0].lower()}{hint[1:]}")
+
+    sentences.extend(_offline_note(reports, brief_offline_note))
+    return " ".join(sentences)
+
+
+# --- A range of days in one summary (step 11) -----------------------------
+# "how much snow will there be this week" asks for the period, not for seven
+# answers. The summary gives the total and the notable day, per intent.
+
+
+def format_date_range(first: date, last: date) -> str:
+    """Spell out a date range compactly: "Sunday 22 to Saturday 28 November".
+
+    Args:
+        first: First day.
+        last: Last day.
+
+    Returns:
+        The range as text.
+    """
+    if first.month == last.month:
+        return (
+            f"{first.strftime('%A')} {first.day} to "
+            f"{format_calendar_date(last)}"
+        )
+    return f"{format_calendar_date(first)} to {format_calendar_date(last)}"
+
+
+def _total_phrase(
+    items: list[tuple[DaySlot, WeatherReport]], attribute: str, unit: str, noun: str
+) -> str:
+    """Phrase the total of one amount over a range, with where it falls.
+
+    "13 cm of fresh snow in total, most on Wednesday 25 November (10 cm)", or
+    "all on ..." when only one day contributes, or ``""`` when nothing does.
+    """
+    amounts = [(day, getattr(report, attribute)) for day, report in items]
+    total = sum(amount for _, amount in amounts)
+    if total < 0.05:
+        return ""
+    wet_days = [(day, amount) for day, amount in amounts if amount >= 0.05]
+    top_day, top = max(wet_days, key=lambda pair: pair[1])
+    where = format_calendar_date(top_day.target_date)
+    if len(wet_days) == 1:
+        return f"{format_amount(total, unit)} of {noun}, all on {where}"
+    return (
+        f"{format_amount(total, unit)} of {noun} in total, most on {where} "
+        f"({format_amount(top, unit)})"
+    )
+
+
+def _summarise_precipitation(
+    items: list[tuple[DaySlot, WeatherReport]], snow_first: bool
+) -> str:
+    """Total snow and rain over a range, with the day that gets most.
+
+    For a snow question the snow comes first and is always stated, also when
+    it is zero; rain is then a short add-on.
+    """
+    snow = _total_phrase(items, "snowfall_sum", "cm", "fresh snow")
+    rain = _total_phrase(items, "rain_sum", "mm", "rain")
+
+    if snow_first:
+        if not snow:
+            return f"no fresh snow expected - {rain} instead" if rain else (
+                "no fresh snow expected - it stays dry"
+            )
+        return f"{snow}, plus {rain}" if rain else snow
+    if rain and snow:
+        return f"{rain}, plus {snow}"
+    return rain or snow or "dry throughout"
+
+
+def generate_range_answer(
+    intent: str,
+    items: list[tuple[DaySlot, WeatherReport]],
+    place: Place,
+    message: str = "",
+    brief_offline_note: bool = False,
+    snow_question: bool | None = None,
+) -> str:
+    """Summarise a range of days ("this week") in one or two sentences.
+
+    Args:
+        intent: The weather intent.
+        items: ``(day, report)`` for each day of the range, in date order.
+        place: The resolved place.
+        message: The user's message (snow question).
+        brief_offline_note: Short form of the offline note.
+        snow_question: Whether this is a snow question, or ``None`` to detect.
+
+    Returns:
+        The summary, the one hint that matters most over a period (fresh snow
+        that warrants the avalanche bulletin, or thunderstorms), and the
+        offline note.
+    """
+    snow_first = mentions_snow(message) if snow_question is None else snow_question
+    reports = [r for _, r in items]
+    at_place = f"{preposition_for(place)} {describe_place(place)}"
+    period = format_date_range(items[0][0].target_date, items[-1][0].target_date)
+    head = f"{at_place[0].upper()}{at_place[1:]}, {period}"
+
+    coldest_day, coldest = min(items, key=lambda i: i[1].temperature_min)
+    warmest_day, warmest = max(items, key=lambda i: i[1].temperature_max)
+    windiest_day, windiest = max(items, key=lambda i: i[1].wind_gusts_max)
+    sunniest_day, sunniest = min(items, key=lambda i: i[1].cloud_cover)
+    cloudiest_day, cloudiest = max(items, key=lambda i: i[1].cloud_cover)
+
+    temperature = (
+        f"lows down to {format_temperature(coldest.temperature_min)} on "
+        f"{format_calendar_date(coldest_day.target_date)}, highs up to "
+        f"{format_temperature(warmest.temperature_max)} on "
+        f"{format_calendar_date(warmest_day.target_date)}"
+    )
+    wind = (
+        f"strongest gusts {windiest.wind_gusts_max:.0f} km/h on "
+        f"{format_calendar_date(windiest_day.target_date)}"
+    )
+    sky = (
+        f"sunniest on {format_calendar_date(sunniest_day.target_date)} "
+        f"({sunniest.cloud_cover:.0f} % cloud), cloudiest on "
+        f"{format_calendar_date(cloudiest_day.target_date)} "
+        f"({cloudiest.cloud_cover:.0f} %)"
+    )
+    precipitation = _summarise_precipitation(items, snow_first)
+
+    body = {
+        ASK_TEMPERATURE: temperature,
+        ASK_SKY: sky,
+        ASK_WIND: wind,
+        ASK_PRECIPITATION: precipitation,
+        ASK_OVERVIEW: f"{temperature}; {wind}; {precipitation}",
+    }.get(intent, f"{temperature}; {wind}; {precipitation}")
+
+    sentences = [f"{head}: {body}."]
+
+    total_snow = sum(r.snowfall_sum for r in reports)
+    stormy = [d for d, r in items if r.weather_code in THUNDERSTORM_CODES]
+    if stormy:
+        sentences.append(
+            f"Thunderstorms are forecast on {format_calendar_date(stormy[0].target_date)} "
+            "- plan to be off summits and ridges early that day."
+        )
+    elif total_snow >= FRESH_SNOW_SUBSTANTIAL_CM:
+        sentences.append(
+            "That much new snow changes the week - and it is also why the "
+            "avalanche bulletin matters more than I do."
+        )
+
+    sentences.extend(_offline_note(reports, brief_offline_note))
     return " ".join(sentences)
 
 

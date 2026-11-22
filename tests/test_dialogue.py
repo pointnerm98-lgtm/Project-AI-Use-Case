@@ -477,14 +477,17 @@ def test_a_day_beyond_the_horizon_is_declined_not_invented(
     The network being down justifies sample data; a question about next week
     has an honest answer, and giving numbers instead would be worse.
 
-    Both dates must be spelled out. "next Friday" is genuinely ambiguous in
-    English and the bot resolves it by a documented convention, so naming the
-    date it actually picked lets the user see and correct that reading; naming
-    the last forecastable date tells them what they can ask for instead.
-    """
-    turn = bot.respond(state, "how cold in Lienz next Friday")
+    Both dates must be spelled out: naming the date the bot actually picked
+    lets the user see and correct that reading; naming the last forecastable
+    date tells them what they can ask for instead.
 
-    # TODAY is Thursday 5 November 2026, so "next Friday" resolves to the 13th
+    Until step 11 this test used "next Friday", which was read as the Friday of
+    the following week. That convention changed after the user test ("next
+    Friday" is now the upcoming Friday), so an explicit date is used instead.
+    """
+    turn = bot.respond(state, "how cold in Lienz on the 13th")
+
+    # TODAY is Thursday 5 November 2026, so "the 13th" is Friday 13 November
     # and the forecast reaches six days out, to the 11th.
     assert "Friday 13 November" in turn.text
     assert "Wednesday 11 November" in turn.text

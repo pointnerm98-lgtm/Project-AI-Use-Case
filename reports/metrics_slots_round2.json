@@ -1,0 +1,28 @@
+{
+  "n_sentences": 52,
+  "place_accuracy": 1.0,
+  "day_accuracy": 1.0,
+  "part_of_day_accuracy": 1.0,
+  "both_slots_accuracy": 1.0,
+  "place_correct": 52,
+  "day_correct": 52,
+  "n_sentences_without_a_place": 8,
+  "correctly_found_no_place": 8,
+  "reference_date": "2026-11-04",
+  "place_errors": [],
+  "day_errors": [],
+  "lowercase_sweep": {
+    "same_place": 489,
+    "lost_in_lowercase": 1,
+    "gained_in_lowercase": 0,
+    "different_place": 0,
+    "differences": [
+      {
+        "sentence": "Alright - I'll head out now. See you next time.",
+        "original": "See",
+        "lowercase": "",
+        "kind": "lost"
+      }
+    ]
+  }
+}

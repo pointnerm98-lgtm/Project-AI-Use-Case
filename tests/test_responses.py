@@ -27,6 +27,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from peakcast.intent_classifier import INTENT_LABELS
 from peakcast.responses import (
+    ACTIVITY_PARAGLIDING,
     FRESH_SNOW_SUBSTANTIAL_CM,
     GUST_NOTABLE_KMH,
     GUST_STRONG_KMH,
@@ -361,8 +362,16 @@ def test_a_dry_day_with_a_real_chance_of_showers_says_so() -> None:
 
 
 def test_strong_gusts_produce_a_flying_hint() -> None:
-    """Gusts are the concept's named decision variable for paragliders."""
-    hints = build_hints(a_report(wind_gusts_max=GUST_STRONG_KMH), snow_first=False)
+    """Gusts are the concept's named decision variable for paragliders.
+
+    Since step 11 the flying wording is only used when the conversation is
+    about paragliding; see test_user_test_round1.py for the other activities.
+    """
+    hints = build_hints(
+        a_report(wind_gusts_max=GUST_STRONG_KMH),
+        snow_first=False,
+        activity=ACTIVITY_PARAGLIDING,
+    )
     assert hints
     assert "not flying weather" in hints[0]
 
@@ -370,7 +379,9 @@ def test_strong_gusts_produce_a_flying_hint() -> None:
 def test_moderate_gusts_produce_a_milder_hint() -> None:
     """Just below the strong threshold the hint must soften, not vanish."""
     hints = build_hints(
-        a_report(wind_gusts_max=GUST_STRONG_KMH - 1.0), snow_first=False
+        a_report(wind_gusts_max=GUST_STRONG_KMH - 1.0),
+        snow_first=False,
+        activity=ACTIVITY_PARAGLIDING,
     )
     assert hints
     assert "worth checking" in hints[0]
@@ -447,7 +458,8 @@ def test_gust_hint_drops_the_figure_when_the_answer_already_gave_it() -> None:
     """
     report = a_report(wind_speed_max=14.0, wind_gusts_max=29.0)
     answer = generate_answer(
-        "ask_wind", report, GLOCKNER, a_day(1), TODAY, rng=SEEDED
+        "ask_wind", report, GLOCKNER, a_day(1), TODAY, rng=SEEDED,
+        activity=ACTIVITY_PARAGLIDING,
     )
 
     assert "29 km/h" in answer, "the sentence itself must still give the value"
@@ -459,7 +471,8 @@ def test_gust_hint_keeps_the_figure_when_the_answer_does_not_give_it() -> None:
     """A temperature answer says nothing about wind, so the figure is news."""
     report = a_report(wind_gusts_max=29.0)
     answer = generate_answer(
-        "ask_temperature", report, GLOCKNER, a_day(1), TODAY, rng=SEEDED
+        "ask_temperature", report, GLOCKNER, a_day(1), TODAY, rng=SEEDED,
+        activity=ACTIVITY_PARAGLIDING,
     )
 
     assert "Gusts reach 29 km/h" in answer
@@ -469,7 +482,8 @@ def test_strong_gust_hint_also_drops_a_duplicated_figure() -> None:
     """The stronger variant must de-duplicate too, not only the mild one."""
     report = a_report(wind_speed_max=60.0, wind_gusts_max=102.0)
     answer = generate_answer(
-        "ask_overview", report, GLOCKNER, a_day(1), TODAY, rng=SEEDED
+        "ask_overview", report, GLOCKNER, a_day(1), TODAY, rng=SEEDED,
+        activity=ACTIVITY_PARAGLIDING,
     )
 
     assert answer.count("102 km/h") == 1

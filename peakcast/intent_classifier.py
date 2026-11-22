@@ -47,9 +47,26 @@ MODEL_PATH: Path = MODELS_DIR / "intent_model.joblib"
 # by grid search on the training set.
 ITER1_MODEL_PATH: Path = MODELS_DIR / "intent_model_iter1.joblib"
 
+# Iteration 2 (step 11, data iteration after user test round 1): the SAME
+# pipeline and hyper-parameters as iteration 1, trained on the original
+# training set plus the phrasings added after the user test. Only the data
+# changes, so any difference to iteration 1 is attributable to the data.
+#
+# The additions live in their own file rather than being appended to
+# intents_train.csv, so that baseline and iteration 1 can still be rebuilt from
+# exactly the data their reported metrics were measured on.
+ITER2_MODEL_PATH: Path = MODELS_DIR / "intent_model_iter2.joblib"
+TRAIN_ROUND2_CSV: Path = DATA_DIR / "intents_train_round2.csv"
+ITER2_TRAIN_CSVS: tuple[Path, ...] = (TRAIN_CSV, TRAIN_ROUND2_CSV)
+
+# The second exam set, written after the user test and BEFORE the training
+# additions, in a deliberately different style (full, polite sentences rather
+# than phone shorthand). Never used for tuning - see DEVLOG step 11.
+TEST_ROUND2_CSV: Path = DATA_DIR / "intents_test_round2.csv"
+
 # The model the bot itself should use. Pointing at a named constant means the
 # dialogue manager does not have to know which iteration is currently best.
-ACTIVE_MODEL_PATH: Path = ITER1_MODEL_PATH
+ACTIVE_MODEL_PATH: Path = ITER2_MODEL_PATH
 
 # --- Hyper-parameters of the active model ---------------------------------
 # The winners of the step 4 grid search (see reports/cv_iter1.json). They are
@@ -309,25 +326,47 @@ def analyse_thresholds(
     return summaries
 
 
-def train_and_save(
-    model_path: Path = MODEL_PATH, pipeline: Pipeline | None = None
-) -> Pipeline:
-    """Train the baseline pipeline on the training CSV and persist it.
+def load_datasets(csv_paths: tuple[Path, ...]) -> tuple[list[str], list[str]]:
+    """Load and concatenate several ``text,intent`` CSV files.
 
-    Used by ``scripts/train_intent.py`` and intended for the later app startup
-    check ("train the model if the file is missing").
+    Args:
+        csv_paths: The files, in order.
+
+    Returns:
+        A tuple ``(texts, labels)`` over all files.
+    """
+    texts: list[str] = []
+    labels: list[str] = []
+    for csv_path in csv_paths:
+        file_texts, file_labels = load_dataset(csv_path)
+        texts.extend(file_texts)
+        labels.extend(file_labels)
+    return texts, labels
+
+
+def train_and_save(
+    model_path: Path = MODEL_PATH,
+    pipeline: Pipeline | None = None,
+    train_csvs: tuple[Path, ...] = (TRAIN_CSV,),
+) -> Pipeline:
+    """Train a pipeline on the training CSV(s) and persist it.
+
+    Used by ``scripts/train_intent.py`` and by the startup check ("train the
+    model if the file is missing").
 
     Args:
         model_path: Destination for the serialised pipeline.
         pipeline: Pipeline to train. Defaults to the baseline pipeline; the
             optimisation script passes the grid-searched iteration-1 pipeline.
+        train_csvs: Training files. Defaults to the original training set;
+            iteration 2 adds the round-2 phrasings.
 
     Returns:
         The fitted pipeline.
     """
     import joblib  # imported here to keep the module importable without joblib
 
-    texts, labels = load_dataset(TRAIN_CSV)
+    texts, labels = load_datasets(train_csvs)
     if pipeline is None:
         pipeline = build_pipeline()
     pipeline.fit(texts, labels)
@@ -387,14 +426,19 @@ def ensure_model(
     if verbose:
         print(f"No intent model at {model_path.name} - training it now ...")
 
-    if model_path == ITER1_MODEL_PATH:
+    train_csvs: tuple[Path, ...] = (TRAIN_CSV,)
+    if model_path in (ITER1_MODEL_PATH, ITER2_MODEL_PATH):
         pipeline = build_pipeline_iter1(
             C=ITER1_C, char_ngram_range=ITER1_CHAR_NGRAM_RANGE
         )
+        if model_path == ITER2_MODEL_PATH:
+            train_csvs = ITER2_TRAIN_CSVS
     else:
         pipeline = build_pipeline()
 
-    trained = train_and_save(model_path=model_path, pipeline=pipeline)
+    trained = train_and_save(
+        model_path=model_path, pipeline=pipeline, train_csvs=train_csvs
+    )
 
     if verbose:
         print(f"  trained and saved to {model_path.name}")
